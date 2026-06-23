@@ -1,0 +1,39 @@
+app-id: io.github.wheat32.CSServerManager
+runtime: org.kde.Platform
+runtime-version: '6.10'
+sdk: org.kde.Sdk
+command: cs_server_manager
+finish-args:
+  # Display
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Allow flatpak-spawn --host to reach the HLDS binary on the host system
+  - --talk-name=org.freedesktop.Flatpak
+  # Read-only access to home so the user can browse for their CS installation
+  # (typically under ~/.steam/ or ~/.local/share/Steam/)
+  - --filesystem=home:ro
+
+modules:
+  - name: cs_server_manager
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    subdir: src
+    post-install:
+      # Rename the icon to match the Flatpak app-id so the launcher can find it
+      - mv /app/share/icons/hicolor/scalable/apps/cs-server-manager.svg
+          /app/share/icons/hicolor/scalable/apps/io.github.wheat32.CSServerManager.svg
+      # Patch the Icon= and Exec= fields in the installed .desktop file
+      - sed -i 's/^Icon=.*/Icon=io.github.wheat32.CSServerManager/'
+          /app/share/applications/cs-server-manager.desktop
+      - sed -i 's/^Exec=.*/Exec=cs_server_manager/'
+          /app/share/applications/cs-server-manager.desktop
+      # Rename the .desktop file itself to the app-id (required by Flatpak)
+      - mv /app/share/applications/cs-server-manager.desktop
+          /app/share/applications/io.github.wheat32.CSServerManager.desktop
+
+    sources:
+      - type: dir
+        path: .

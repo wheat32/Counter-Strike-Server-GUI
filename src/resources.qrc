@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>style_dark.qss</file>
+        <file>style_light.qss</file>
+        <file>version.json</file>
+    </qresource>
+    <qresource prefix="/assets">
+        <file alias="chevron-up.svg">assets/chevron-up.svg</file>
+        <file alias="chevron-down.svg">assets/chevron-down.svg</file>
+        <file alias="chevron-down-light.svg">assets/chevron-down-light.svg</file>
+        <file alias="gear.svg">assets/gear.svg</file>
+    </qresource>
+</RCC>

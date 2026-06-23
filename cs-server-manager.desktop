@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=CS Server Manager
+GenericName=Game Server Manager
+Comment=GUI for managing Counter-Strike: Condition Zero dedicated servers
+Exec=cs_server_manager
+Icon=cs-server-manager
+Terminal=false
+Type=Application
+Categories=Game;Utility;
+Keywords=Counter-Strike;CS;Server;Game;Dedicated;HLDS;
+StartupNotify=true
