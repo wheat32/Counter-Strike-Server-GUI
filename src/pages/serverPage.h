@@ -51,6 +51,7 @@ private:
 
     // Connection
     QLineEdit*        m_ipEdit            = nullptr;
+    QPushButton*      m_detectIpBtn       = nullptr;
     NumberSpinner*    m_portSpinner       = nullptr;
     QPushButton*      m_firewallCheckBtn  = nullptr;
     QLabel*           m_firewallLabel     = nullptr;
@@ -72,5 +73,6 @@ private:
 
     void refreshPasswordToggleIcon();
     void writeBotsTeamToConfig();
+    void detectLocalIp();
     void onFirewallResult(int port, FirewallChecker::Status status, FirewallChecker::FirewallType type);
 };

@@ -15,6 +15,8 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QProcess>
+#include <QRegularExpression>
 #include <QTabWidget>
 #include <QTextBrowser>
 #include <QTimer>
@@ -24,6 +26,7 @@
 #include <QPainter>
 #include <QSvgRenderer>
 
+#include "cli/flatpakUtils.h"
 #include "firewallHelpDialog.h"
 #include "serverFiles.h"
 #include "widgets/htmlHighlighter.h"
@@ -214,14 +217,29 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         QFormLayout* form = new QFormLayout(group);
         form->setSpacing(FORM_SPACING);
 
-        m_ipEdit = new QLineEdit(group);
-        m_ipEdit->setPlaceholderText(QStringLiteral("127.0.0.1"));
+        // IP row: [text field] [Detect button]
+        QWidget* ipRow = new QWidget(group);
+        QHBoxLayout* ipLayout = new QHBoxLayout(ipRow);
+        ipLayout->setContentsMargins(0, 0, 0, 0);
+        ipLayout->setSpacing(PORT_ROW_SPACING);
+
+        m_ipEdit = new QLineEdit(ipRow);
+        m_ipEdit->setPlaceholderText(QStringLiteral("0.0.0.0"));
+        ipLayout->addWidget(m_ipEdit, 1);
+
+        m_detectIpBtn = new QPushButton(tr("Detect"), ipRow);
+        m_detectIpBtn->setFocusPolicy(Qt::NoFocus);
+        m_detectIpBtn->setToolTip(
+            tr("Run ifconfig and fill in your local IP address.\n"
+               "The detected address is saved for next launch."));
+        ipLayout->addWidget(m_detectIpBtn);
+
         form->addRow(
             makeLabelWithTooltip(tr("IP Address:"),
                 tr("IP address the server binds to.\n"
                    "0.0.0.0 — listen on all network interfaces (recommended)\n"
                    "Leave empty to use the system default."), group),
-            m_ipEdit);
+            ipRow);
 
         // Port row: spinner | Check Firewall button | status label | fix link
         QWidget* portRow = new QWidget(group);
@@ -261,6 +279,8 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
             portRow);
 
         layout->addWidget(group);
+
+        connect(m_detectIpBtn, &QPushButton::clicked, this, &ServerPage::detectLocalIp);
 
         // Persist IP on focus-out / Enter
         connect(m_ipEdit, &QLineEdit::editingFinished, this, [this]()
@@ -683,6 +703,70 @@ void ServerPage::changeEvent(QEvent* event)
     {
         refreshPasswordToggleIcon();
     }
+}
+
+void ServerPage::detectLocalIp()
+{
+    m_detectIpBtn->setEnabled(false);
+    m_detectIpBtn->setText(tr("Detecting…"));
+
+    auto [prog, args] = buildHostCommand(QStringLiteral("ifconfig"), {});
+    QProcess* proc = new QProcess(this);
+
+    // Restore the button regardless of success or failure.
+    auto restoreBtn = [this]()
+    {
+        m_detectIpBtn->setText(tr("Detect"));
+        m_detectIpBtn->setEnabled(true);
+    };
+
+    connect(proc, &QProcess::finished, this, [this, proc, restoreBtn](int, QProcess::ExitStatus)
+    {
+        const QString output = QString::fromLocal8Bit(proc->readAllStandardOutput());
+        proc->deleteLater();
+
+        // Match "inet <IPv4>" lines; \b prevents matching "inet6".
+        const QRegularExpression re(QStringLiteral("\\binet\\s+([\\d.]+)"));
+        QRegularExpressionMatchIterator it = re.globalMatch(output);
+
+        QString foundIp;
+        while (it.hasNext())
+        {
+            const QRegularExpressionMatch match = it.next();
+            const QString ip = match.captured(1);
+            if (ip.startsWith(QStringLiteral("127.")) == false)
+            {
+                foundIp = ip;
+                break;
+            }
+        }
+
+        if (foundIp.isEmpty() == false)
+        {
+            m_ipEdit->setText(foundIp);
+
+            // Save immediately — same path as manual editingFinished.
+            const AppConfig::Game game = AppConfig::instance().selectedGame();
+            if (game == AppConfig::Game::CZ)
+            {
+                AppConfig::instance().setCzIp(foundIp);
+            }
+            else
+            {
+                AppConfig::instance().setCs16Ip(foundIp);
+            }
+        }
+
+        restoreBtn();
+    });
+
+    connect(proc, &QProcess::errorOccurred, this, [proc, restoreBtn](QProcess::ProcessError)
+    {
+        proc->deleteLater();
+        restoreBtn();
+    });
+
+    proc->start(prog, args);
 }
 
 void ServerPage::writeBotsTeamToConfig()
