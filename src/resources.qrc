@@ -5,9 +5,18 @@
         <file>version.json</file>
     </qresource>
     <qresource prefix="/assets">
+        <file alias="app-icon.svg">../cs-server-manager.svg</file>
+        <file alias="app-icon-cz.svg">assets/app-icon-cz.svg</file>
         <file alias="chevron-up.svg">assets/chevron-up.svg</file>
         <file alias="chevron-down.svg">assets/chevron-down.svg</file>
         <file alias="chevron-down-light.svg">assets/chevron-down-light.svg</file>
         <file alias="gear.svg">assets/gear.svg</file>
+        <file alias="check.svg">assets/check.svg</file>
+        <file alias="eye.svg">assets/eye.svg</file>
+        <file alias="eye-slash.svg">assets/eye-slash.svg</file>
+        <file alias="box-arrow-up-right.svg">assets/box-arrow-up-right.svg</file>
+        <file alias="question-circle.svg">assets/question-circle.svg</file>
+        <file alias="counter-strike-1.6.png">assets/counter-strike-1.6.png</file>
+        <file alias="Condition-Zero.png">assets/Condition-Zero.png</file>
     </qresource>
 </RCC>

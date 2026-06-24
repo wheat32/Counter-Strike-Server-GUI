@@ -95,7 +95,13 @@ QComboBox:focus {
 
 QComboBox::drop-down {
     border: none;
-    width: 20px;
+    width: 22px;
+}
+
+QComboBox::down-arrow {
+    image: url(:/assets/chevron-down-light.svg);
+    width: 12px;
+    height: 12px;
 }
 
 QComboBox QAbstractItemView {
@@ -126,8 +132,9 @@ QCheckBox::indicator:hover {
 }
 
 QCheckBox::indicator:checked {
-    background-color: #8a7000;
-    border-color: #8a7000;
+    background-color: transparent;
+    border-color: #c8a800;
+    image: url(:/assets/check.svg);
 }
 
 /* === Group Boxes === */
@@ -375,4 +382,193 @@ QSlider::sub-page:horizontal {
 #pickerDrawer {
     background-color: palette(base);
     border-right: 1px solid palette(mid);
+}
+
+/* === Header Bar === */
+#headerBar {
+    background-color: palette(base);
+    border-bottom: 1px solid palette(mid);
+}
+
+/* === Game Selector === */
+#gameSelector {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 10px;
+}
+
+/* === Start / Stop Button === */
+#startStopBtn {
+    font-size: 13px;
+    font-weight: bold;
+    min-width: 130px;
+    border-radius: 4px;
+    padding: 8px 20px;
+}
+
+#startStopBtn[serverRunning="false"] {
+    background-color: #e0f0e0;
+    color: #2a6a2a;
+    border: 1px solid #4a8a4a;
+}
+
+#startStopBtn[serverRunning="false"]:hover {
+    background-color: #d0ead0;
+    border-color: #3a7a3a;
+}
+
+#startStopBtn[serverRunning="true"] {
+    background-color: #f0e0e0;
+    color: #6a2a2a;
+    border: 1px solid #8a4a4a;
+}
+
+#startStopBtn[serverRunning="true"]:hover {
+    background-color: #ead0d0;
+    border-color: #7a3a3a;
+}
+
+/* === Nav Bar === */
+#navBar {
+    background-color: palette(base);
+}
+
+#navButton {
+    text-align: left;
+    padding: 10px 14px;
+    border: none;
+    border-left: 3px solid transparent;
+    border-radius: 0px;
+    background: transparent;
+    color: palette(window-text);
+    font-size: 13px;
+}
+
+#navButton:hover:!checked {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+#navButton:checked {
+    background: rgba(138, 112, 0, 0.10);
+    border-left: 3px solid #8a7000;
+    color: #8a7000;
+    font-weight: bold;
+}
+
+#navHSep {
+    border: none;
+    background: palette(mid);
+    max-height: 1px;
+    min-height: 1px;
+    margin: 4px 12px;
+}
+
+/* === Page Titles === */
+#pageTitle {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 16px 20px 12px 20px;
+    border-bottom: 1px solid palette(mid);
+    color: palette(window-text);
+    background: transparent;
+}
+
+/* === Placeholder labels on stub pages === */
+#placeholderLabel {
+    color: palette(placeholder-text);
+    font-size: 14px;
+}
+
+/* === Server Setup Dialog === */
+#setupDialogHeading {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#setupStatusLabel[status="ok"] {
+    color: #2a6a2a;
+    font-weight: bold;
+}
+
+#setupStatusLabel[status="error"] {
+    color: #8a2a2a;
+}
+
+/* === Firewall status labels === */
+QLabel[firewallStatus="ok"] {
+    color: #2a6a2a;
+    font-weight: bold;
+}
+
+QLabel[firewallStatus="warn"] {
+    color: #8a7000;
+}
+
+QLabel[firewallStatus="blocked"] {
+    color: #8a2a2a;
+}
+
+QLabel[firewallStatus="unknown"] {
+    color: palette(placeholder-text);
+}
+
+/* === Server not running banner === */
+#serverNotRunningBanner {
+    background-color: rgba(138, 112, 0, 0.08);
+    border: 1px solid rgba(138, 112, 0, 0.35);
+    border-radius: 6px;
+    color: #8a7000;
+}
+
+#serverNotRunningBannerIcon {
+    font-size: 16px;
+    color: #8a7000;
+}
+
+/* === Firewall help dialog commands === */
+#helpCmds {
+    font-family: "Monospace", "Courier New", monospace;
+    font-size: 12px;
+}
+
+#helpNote {
+    color: palette(placeholder-text);
+    font-size: 12px;
+}
+
+/* === Disabled nav button === */
+#navButton:disabled {
+    color: palette(mid);
+    background: transparent;
+    border-left-color: transparent;
+}
+
+/* === Server Controls page === */
+#serverOutputArea {
+    background-color: #1a1d27;
+    color: #c8d0c4;
+    font-family: "Monospace", "Courier New", monospace;
+    font-size: 12px;
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+}
+
+#cmdPromptLabel {
+    font-family: "Monospace", monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #8a7000;
+}
+
+#cmdInput {
+    font-family: "Monospace", "Courier New", monospace;
+    font-size: 13px;
+}
+
+/* === Accent button disabled state === */
+QPushButton[accent="true"]:disabled {
+    background-color: palette(button);
+    color: palette(placeholder-text);
+    border: 1px solid palette(dark);
+    font-weight: normal;
 }

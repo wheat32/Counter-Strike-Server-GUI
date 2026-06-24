@@ -24,12 +24,35 @@ set(SOURCES
         themeManager.cpp
         debug.h
         uiHelpers.h
+        mainWindow.h
+        mainWindow.cpp
+        serverUtils.h
+        serverFiles.h
+        serverManager.h
+        serverManager.cpp
+        serverSetupDialog.h
+        serverSetupDialog.cpp
+        firewallChecker.h
+        firewallChecker.cpp
+        firewallHelpDialog.h
+        dialogs/aboutDialog.h
+        dialogs/aboutDialog.cpp
+        pages/serverPage.h
+        pages/serverPage.cpp
+        pages/serverControlsPage.h
+        pages/serverControlsPage.cpp
+        pages/mapsPage.h
+        pages/botsPage.h
+        pages/serverSettingsPage.h
+        pages/appSettingsPage.h
+        pages/appSettingsPage.cpp
         cli/appImageUtils.h
         cli/flatpakUtils.h
         cli/platformUtils.h
         widgets/elidaLabel.h
         widgets/infoBanner.h
         widgets/numberSpinner.h
+        widgets/htmlHighlighter.h
         widgets/svgBanner.h
         widgets/toastNotification.h
         widgets/toggleSwitch.h
@@ -39,6 +62,8 @@ set(SOURCES
 )
 
 add_executable(cs_server_manager ${SOURCES})
+
+target_include_directories(cs_server_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(cs_server_manager
         Qt6::Core

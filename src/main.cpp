@@ -1,16 +1,20 @@
 #include <QApplication>
 #include <QFile>
+#include <QFileInfo>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QLabel>
 #include <QLocale>
 #include <QStandardPaths>
 #include <QSysInfo>
-#include <QWidget>
 
 #include "appConfig.h"
+#include "cli/appImageUtils.h"
 #include "cli/platformUtils.h"
 #include "debug.h"
+#include "mainWindow.h"
+#include "serverSetupDialog.h"
+#include "serverUtils.h"
 #include "themeManager.h"
 
 namespace
@@ -53,11 +57,61 @@ int main(int argc, char* argv[])
 
     ThemeManager::apply(AppConfig::instance().theme());
 
-    // Placeholder window — main window implementation comes next.
-    QWidget window;
-    window.setWindowTitle(QStringLiteral("CS Server Manager v") + appVersion);
+    // Set the application icon based on the persisted game selection.
+    // CS:CZ gets the gold icon; CS 1.6 (and the .desktop default) gets the white icon.
+    const QString startupIcon = (AppConfig::instance().selectedGame() == AppConfig::Game::CZ)
+        ? QStringLiteral(":/assets/app-icon-cz.svg")
+        : QStringLiteral(":/assets/app-icon.svg");
+    QApplication::setWindowIcon(QIcon(startupIcon));
+
+
+    // ── AppImage: auto-detect server location ─────────────────────────────────
+    // If the AppImage is placed alongside hlds_run, configure both game paths
+    // automatically so the user does not need to manually set them.
+    if (isRunningAsAppImage())
+    {
+        const QString appImageFile = qEnvironmentVariable("APPIMAGE");
+        const QString appImageDir  = QFileInfo(appImageFile).absolutePath();
+
+        if (isValidServerPath(appImageDir))
+        {
+            DBG_APP(QStringLiteral("AppImage co-located with hlds_run — auto-configuring server paths."));
+            if (AppConfig::instance().cs16ServerPath().isEmpty())
+            {
+                AppConfig::instance().setCs16ServerPath(appImageDir);
+            }
+            if (AppConfig::instance().czServerPath().isEmpty())
+            {
+                AppConfig::instance().setCzServerPath(appImageDir);
+            }
+        }
+    }
+
+    // ── Show main window ──────────────────────────────────────────────────────
+    MainWindow window;
     window.resize(MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
     window.show();
+
+    // ── Validate current game path ────────────────────────────────────────────
+    // If the selected game has no valid server path, block the main window with
+    // the setup dialog. The user must provide a valid path or quit.
+    const AppConfig::Game currentGame = AppConfig::instance().selectedGame();
+    const QString currentPath = (currentGame == AppConfig::Game::CZ)
+        ? AppConfig::instance().czServerPath()
+        : AppConfig::instance().cs16ServerPath();
+
+    if (isValidServerPath(currentPath) == false)
+    {
+        DBG_APP(QStringLiteral("Server path not valid — showing setup dialog."));
+        ServerSetupDialog setupDlg(currentGame, &window);
+        setupDlg.exec();
+        if (setupDlg.userWantsToQuit())
+        {
+            return 0;
+        }
+        // Sync the main window in case the dialog switched the selected game.
+        window.syncGameSelection();
+    }
 
     return QApplication::exec();
 }

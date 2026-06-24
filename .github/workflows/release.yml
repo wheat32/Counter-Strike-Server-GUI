@@ -199,6 +199,8 @@ jobs:
             ./CSServerManager-${{ steps.tag.outputs.VERSION }}-x86_64.AppImage
             ```
 
+            > **Tip — zero-config setup:** Place the AppImage in the same directory as your HLDS installation (the folder containing `hlds_run`). The app will detect it automatically on first launch and skip the manual path setup.
+
             ### Flatpak
             The Flatpak calls the host's `hlds_run` via `flatpak-spawn --host`, so
             HLDS must be installed on your system.
