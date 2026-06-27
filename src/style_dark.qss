@@ -348,6 +348,18 @@ QSlider::sub-page:horizontal {
     color: #e2e8f0;
 }
 
+QPushButton#toastCloseBtn {
+    color: #c8a800;
+    background: transparent;
+    border: 1px solid #c8a800;
+    border-radius: 4px;
+    padding: 0px;
+}
+
+QPushButton#toastCloseBtn:hover {
+    background: rgba(200, 168, 0, 0.18);
+}
+
 /* === Number Spinner === */
 #numberSpinner {
     border: 1px solid palette(mid);
@@ -425,6 +437,13 @@ QSlider::sub-page:horizontal {
 #startStopBtn[serverRunning="true"]:hover {
     background-color: #3a2222;
     border-color: #703e3e;
+}
+
+#startStopBtn[serverRunning="false"]:disabled,
+#startStopBtn[serverRunning="true"]:disabled {
+    background-color: #252525;
+    color: #606060;
+    border: 1px solid #383838;
 }
 
 /* === Nav Bar === */

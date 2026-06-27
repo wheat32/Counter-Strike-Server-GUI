@@ -1,5 +1,6 @@
 #include "appSettingsPage.h"
 
+#include <QCheckBox>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
@@ -164,6 +165,23 @@ AppSettingsPage::AppSettingsPage(QWidget* parent) : QWidget(parent)
         {
             AppConfig::instance().setTheme(AppConfig::Theme::Light);
             ThemeManager::apply(AppConfig::Theme::Light);
+        });
+    }
+
+    // ── Updates ───────────────────────────────────────────────────────────────
+    {
+        QGroupBox* group = new QGroupBox(tr("Updates"), content);
+        QVBoxLayout* groupLayout = new QVBoxLayout(group);
+
+        QCheckBox* checkUpdatesBox = new QCheckBox(tr("Check for updates on startup"), group);
+        checkUpdatesBox->setChecked(AppConfig::instance().checkForUpdates());
+        groupLayout->addWidget(checkUpdatesBox);
+
+        contentLayout->addWidget(group);
+
+        connect(checkUpdatesBox, &QCheckBox::toggled, this, [](const bool checked)
+        {
+            AppConfig::instance().setCheckForUpdates(checked);
         });
     }
 

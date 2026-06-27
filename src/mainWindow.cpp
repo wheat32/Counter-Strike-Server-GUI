@@ -6,13 +6,27 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPainter>
 #include <QSvgRenderer>
+#include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
+#include <QVersionNumber>
 #include <QWindow>
 
 #include "appConfig.h"
+#include "debug.h"
+#include "dialogs/updateAvailableDialog.h"
+#include "dialogs/whatsNewDialog.h"
+#include "widgets/toastNotification.h"
 #include "pages/appSettingsPage.h"
+#ifdef QT_DEBUG
+#include "pages/debugPage.h"
+#endif
 #include "pages/botsPage.h"
 #include "pages/mapsPage.h"
 #include "pages/serverControlsPage.h"
@@ -23,6 +37,10 @@
 namespace
 {
 constexpr QColor NAV_ACCENT_COLOR { 0xc8, 0xa8, 0x00 };
+constexpr int UPDATE_CHECK_DELAY_MS   = 3000;
+constexpr int UPDATE_CHECK_TIMEOUT_MS = 10000;
+const char UPDATE_VERSION_URL[] =
+    "https://raw.githubusercontent.com/wheat32/Counter-Strike-Server-GUI/main/src/version.json";
 
 // Renders an SVG resource in two colors — one for the normal state
 // and one for the checked/active state — and bundles them into a QIcon
@@ -120,7 +138,8 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     navLayout->addWidget(m_serverControlsNavBtn);
 
     navLayout->addWidget(makeNavButton(tr("Maps"),            QString(), Page::Maps));
-    navLayout->addWidget(makeNavButton(tr("Bots"),            QString(), Page::Bots));
+    m_botsNavBtn = makeNavButton(tr("Bots"),                  QString(), Page::Bots);
+    navLayout->addWidget(m_botsNavBtn);
     navLayout->addWidget(makeNavButton(tr("Server Settings"), QString(), Page::ServerSettings));
 
     QFrame* navHSep = new QFrame(navWidget);
@@ -132,6 +151,11 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
                                        QStringLiteral(":/assets/gear.svg"),
                                        Page::AppSettings));
     navLayout->addStretch();
+#ifdef QT_DEBUG
+    navLayout->addWidget(makeNavButton(tr("Debug"),
+                                       QStringLiteral(":/assets/bug.svg"),
+                                       Page::Debug));
+#endif
 
     bodyLayout->addWidget(navWidget);
 
@@ -147,10 +171,17 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     m_serverControlsPage = new ServerControlsPage(this);
     m_pageStack->addWidget(m_serverControlsPage);         // 1 — ServerControls
 
-    m_pageStack->addWidget(new MapsPage(this));           // 2 — Maps
-    m_pageStack->addWidget(new BotsPage(this));           // 3 — Bots
-    m_pageStack->addWidget(new ServerSettingsPage(this)); // 4 — ServerSettings
+    m_mapsPage = new MapsPage(this);
+    m_pageStack->addWidget(m_mapsPage);                   // 2 — Maps
+    m_botsPage = new BotsPage(this);
+    m_pageStack->addWidget(m_botsPage);                   // 3 — Bots
+    m_serverSettingsPage = new ServerSettingsPage(this);
+    m_pageStack->addWidget(m_serverSettingsPage);          // 4 — ServerSettings
     m_pageStack->addWidget(new AppSettingsPage(this));    // 5 — AppSettings
+#ifdef QT_DEBUG
+    m_debugPage = new DebugPage(this);
+    m_pageStack->addWidget(m_debugPage);                  // 6 — Debug (debug builds only)
+#endif
     bodyLayout->addWidget(m_pageStack, 1);
 
     rootLayout->addWidget(bodyWidget, 1);
@@ -161,7 +192,16 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
         const AppConfig::Game game = (index == 0) ? AppConfig::Game::CS16 : AppConfig::Game::CZ;
         AppConfig::instance().setSelectedGame(game);
         updateWindowIcon(game);
+
+        const bool hasBots = (game == AppConfig::Game::CZ);
+        m_botsNavBtn->setVisible(hasBots);
+        if (!hasBots && m_pageStack->currentIndex() == static_cast<int>(Page::Bots))
+            selectPage(Page::ServerOverview);
+
         m_serverPage->loadForGame(game);
+        m_mapsPage->loadForGame(game);
+        m_serverSettingsPage->loadForGame(game);
+        m_botsPage->loadForGame(game);
     });
 
     connect(m_navGroup, &QButtonGroup::idClicked, this, [this](const int id)
@@ -176,6 +216,13 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     connect(m_serverManager, &ServerManager::outputLine,
             m_serverControlsPage, &ServerControlsPage::appendOutput);
 
+    // Promote "starting" → "running" on the first line of server output.
+    connect(m_serverManager, &ServerManager::outputLine, this, [this]()
+    {
+        if (m_serverStarting)
+            setServerRunning(true);
+    });
+
     connect(m_serverManager, &ServerManager::stopped, this, [this]()
     {
         setServerRunning(false);
@@ -185,6 +232,27 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
             m_serverManager, &ServerManager::sendCommand);
 
     selectPage(Page::ServerOverview);
+
+    // ── Initial bot nav visibility ────────────────────────────────────────────
+    m_botsNavBtn->setVisible(AppConfig::instance().selectedGame() == AppConfig::Game::CZ);
+
+    // ── Maps page → keep ServerPage combo in sync ─────────────────────────────
+    connect(m_mapsPage, &MapsPage::mapSelected, m_serverPage, &ServerPage::setStartMap);
+
+    // ── Restart-required toast ────────────────────────────────────────────────
+    connect(m_serverPage,         &ServerPage::settingChanged,
+            this, &MainWindow::onSettingChanged);
+    connect(m_mapsPage,           &MapsPage::settingChanged,
+            this, &MainWindow::onSettingChanged);
+    connect(m_serverSettingsPage, &ServerSettingsPage::settingChanged,
+            this, &MainWindow::onSettingChanged);
+    connect(m_botsPage,           &BotsPage::settingChanged,
+            this, &MainWindow::onSettingChanged);
+
+    // ── Update checks ─────────────────────────────────────────────────────────
+    m_networkManager = new QNetworkAccessManager(this);
+    QTimer::singleShot(500,                    this, &MainWindow::checkWhatsNew);
+    QTimer::singleShot(UPDATE_CHECK_DELAY_MS,  this, &MainWindow::checkForUpdates);
 }
 
 QPushButton* MainWindow::makeNavButton(const QString& label,
@@ -220,7 +288,11 @@ void MainWindow::selectPage(const Page page)
 
 void MainWindow::setServerRunning(const bool running)
 {
-    m_serverRunning = running;
+    if (running)
+        m_restartToastShown = false;
+    m_serverStarting = false;
+    m_serverRunning  = running;
+    m_startStopBtn->setEnabled(true);
     m_startStopBtn->setText(running ? tr("Stop Server") : tr("Start Server"));
     m_startStopBtn->setProperty("serverRunning", running);
     m_startStopBtn->style()->unpolish(m_startStopBtn);
@@ -240,6 +312,10 @@ void MainWindow::onStartStopClicked()
             ? QStringLiteral("czero")
             : QStringLiteral("cstrike");
 
+        m_startStopBtn->setEnabled(false);
+        m_startStopBtn->setText(tr("Starting Server..."));
+        m_serverStarting = true;
+
         const bool ok = m_serverManager->start(
             serverPath, gameName,
             m_serverPage->currentIp(),
@@ -247,15 +323,23 @@ void MainWindow::onStartStopClicked()
             m_serverPage->currentMap(),
             m_serverPage->maxPlayers());
 
-        if (ok)
+        if (ok == false)
         {
-            setServerRunning(true);
+            // Process failed to launch — restore button immediately.
+            m_serverStarting = false;
+            m_startStopBtn->setEnabled(true);
+            m_startStopBtn->setText(tr("Start Server"));
         }
+        // If ok, setServerRunning(true) is called when the first outputLine arrives.
     }
     else
     {
+        // Disable immediately to prevent a second click during teardown.
+        m_serverRunning = false;
+        m_startStopBtn->setEnabled(false);
+        m_startStopBtn->setText(tr("Stopping Server..."));
         m_serverManager->stop();
-        // UI reverts when the stopped() signal arrives from ServerManager.
+        // setServerRunning(false) is called when the stopped() signal fires.
     }
 }
 
@@ -290,4 +374,81 @@ void MainWindow::updateWindowIcon(const AppConfig::Game game)
     {
         windowHandle()->setIcon(icon);
     }
+}
+
+void MainWindow::onSettingChanged()
+{
+    if (m_serverRunning == false || m_restartToastShown)
+        return;
+    m_restartToastShown = true;
+    ToastNotification::popup(this,
+        tr("Restart the server for this change to take effect."), 5000);
+}
+
+void MainWindow::checkWhatsNew()
+{
+    const QString currentVersion = QApplication::applicationVersion();
+    const QString lastVersion    = AppConfig::instance().lastSeenVersion();
+
+    const QVersionNumber current = QVersionNumber::fromString(currentVersion);
+    const QVersionNumber last    = QVersionNumber::fromString(lastVersion);
+
+    if (lastVersion.isEmpty() || current > last)
+    {
+        DBG_APP(lastVersion.isEmpty()
+                ? QStringLiteral("First launch — showing What's New for v") + currentVersion
+                : QStringLiteral("New version since last launch: v") + lastVersion
+                      + QStringLiteral(" → v") + currentVersion);
+        AppConfig::instance().setLastSeenVersion(currentVersion);
+        WhatsNewDialog* dlg = new WhatsNewDialog(currentVersion, this);
+        dlg->setModal(true);
+        dlg->show();
+    }
+}
+
+void MainWindow::checkForUpdates()
+{
+    if (AppConfig::instance().checkForUpdates() == false)
+        return;
+
+    DBG_APP(QStringLiteral("Checking for updates..."));
+    QNetworkRequest request(QUrl(QString::fromLatin1(UPDATE_VERSION_URL)));
+    request.setTransferTimeout(UPDATE_CHECK_TIMEOUT_MS);
+
+    QNetworkReply* reply = m_networkManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]()
+    {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError)
+        {
+            DBG_APP(QStringLiteral("Update check failed: ") + reply->errorString());
+            return;
+        }
+
+        const QJsonObject remoteObj = QJsonDocument::fromJson(reply->readAll()).object();
+        const QString remoteVersion = remoteObj.value(QStringLiteral("app_version")).toString();
+        if (remoteVersion.isEmpty())
+            return;
+
+        const QString localVersion = QApplication::applicationVersion();
+        if (localVersion.isEmpty())
+            return;
+
+        const QVersionNumber remote = QVersionNumber::fromString(remoteVersion);
+        const QVersionNumber local  = QVersionNumber::fromString(localVersion);
+
+        if (remote > local)
+        {
+            DBG_APP(QStringLiteral("Update available: v") + localVersion
+                    + QStringLiteral(" → v") + remoteVersion);
+            UpdateAvailableDialog* dlg = new UpdateAvailableDialog(localVersion, remoteVersion, this);
+            dlg->setModal(true);
+            dlg->show();
+        }
+        else
+        {
+            DBG_APP(QStringLiteral("Up to date (v") + localVersion + QStringLiteral(")"));
+        }
+    });
 }

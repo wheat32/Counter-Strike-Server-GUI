@@ -53,7 +53,6 @@ public:
         QPushButton* closeBtn = new QPushButton(QStringLiteral("✕"), this);
         closeBtn->setObjectName(QStringLiteral("toastCloseBtn"));
         closeBtn->setFixedSize(TOAST_CLOSE_BTN_SIZE, TOAST_CLOSE_BTN_SIZE);
-        closeBtn->setFlat(true);
         closeBtn->setCursor(Qt::PointingHandCursor);
         connect(closeBtn, &QPushButton::clicked, this, &ToastNotification::dismiss);
         hLayout->addWidget(closeBtn);

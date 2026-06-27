@@ -11,6 +11,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 COMPONENTS
         Core
         Gui
+        Network
         Widgets
         Svg
         SvgWidgets
@@ -37,13 +38,24 @@ set(SOURCES
         firewallHelpDialog.h
         dialogs/aboutDialog.h
         dialogs/aboutDialog.cpp
+        dialogs/errorDetailsDialog.h
+        dialogs/errorDetailsDialog.cpp
+        dialogs/gameServerTypeDialog.h
+        dialogs/gameServerTypeDialog.cpp
+        dialogs/updateAvailableDialog.h
+        dialogs/updateAvailableDialog.cpp
+        dialogs/whatsNewDialog.h
+        dialogs/whatsNewDialog.cpp
         pages/serverPage.h
         pages/serverPage.cpp
         pages/serverControlsPage.h
         pages/serverControlsPage.cpp
         pages/mapsPage.h
+        pages/mapsPage.cpp
         pages/botsPage.h
+        pages/botsPage.cpp
         pages/serverSettingsPage.h
+        pages/serverSettingsPage.cpp
         pages/appSettingsPage.h
         pages/appSettingsPage.cpp
         cli/appImageUtils.h
@@ -61,6 +73,13 @@ set(SOURCES
         resources.qrc
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(APPEND SOURCES
+        pages/debugPage.h
+        pages/debugPage.cpp
+    )
+endif()
+
 add_executable(cs_server_manager ${SOURCES})
 
 target_include_directories(cs_server_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -68,6 +87,7 @@ target_include_directories(cs_server_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(cs_server_manager
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
         Qt6::Widgets
         Qt6::Svg
         Qt6::SvgWidgets

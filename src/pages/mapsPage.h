@@ -1,26 +1,39 @@
 #pragma once
 
-#include <QLabel>
-#include <QVBoxLayout>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QWidget>
+
+#include "appConfig.h"
 
 class MapsPage : public QWidget
 {
     Q_OBJECT
+
 public:
-    explicit MapsPage(QWidget* parent = nullptr) : QWidget(parent)
-    {
-        QVBoxLayout* layout = new QVBoxLayout(this);
-        layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(0);
+    explicit MapsPage(QWidget* parent = nullptr);
+    void loadForGame(AppConfig::Game game);
 
-        QLabel* titleLabel = new QLabel(tr("Maps"), this);
-        titleLabel->setObjectName(QStringLiteral("pageTitle"));
-        layout->addWidget(titleLabel);
+signals:
+    void mapSelected(const QString& map);
+    void settingChanged();
 
-        QLabel* placeholder = new QLabel(tr("Map browser — coming soon"), this);
-        placeholder->setObjectName(QStringLiteral("placeholderLabel"));
-        placeholder->setAlignment(Qt::AlignCenter);
-        layout->addWidget(placeholder, 1);
-    }
+private:
+    void applyFilters();
+
+    QComboBox* m_mapCombo = nullptr;
+
+    // Version filters
+    QCheckBox* m_showStandard = nullptr;
+    QCheckBox* m_showCZ       = nullptr;
+
+    // Type filters
+    QCheckBox* m_showDefuse        = nullptr;
+    QCheckBox* m_showHostage       = nullptr;
+    QCheckBox* m_showAssassination = nullptr;
+    QCheckBox* m_showAim           = nullptr;
+    QCheckBox* m_showFightYard     = nullptr;
+    QCheckBox* m_showOther         = nullptr;
+
+    QStringList m_allMaps;
 };
