@@ -465,4 +465,266 @@ inline QStringList scanMaps(const AppConfig::Game game)
     return names;
 }
 
+// ── BotProfile.db ────────────────────────────────────────────────────────────
+
+inline const QStringList& knownSkillTemplates()
+{
+    static const QStringList v = {
+        QStringLiteral("Easy"), QStringLiteral("Fair"), QStringLiteral("Normal"),
+        QStringLiteral("Tough"), QStringLiteral("Hard"), QStringLiteral("VeryHard"),
+        QStringLiteral("Expert"), QStringLiteral("Elite")
+    };
+    return v;
+}
+
+inline const QStringList& knownWeaponTemplates()
+{
+    static const QStringList v = {
+        QStringLiteral("Rifle"),   QStringLiteral("RifleT"),  QStringLiteral("Punch"),
+        QStringLiteral("PunchT"),  QStringLiteral("Sniper"),  QStringLiteral("Power"),
+        QStringLiteral("Shotgun"), QStringLiteral("Shield"),  QStringLiteral("Spray")
+    };
+    return v;
+}
+
+struct BotProfile
+{
+    QString name;
+    QString skillTemplate;   // "Easy" .. "Elite"
+    QString weaponTemplate;  // empty = none
+    int     skin       = 0;  // 0 = any (unspecified)
+    int     voicePitch = 100;
+    int     cost       = -1; // -1 = unspecified (use template default)
+};
+
+inline QString botProfilePath(const AppConfig::Game game)
+{
+    return gameDirectory(game) + QStringLiteral("/BotProfile.db");
+}
+
+// Parses a bot profile header line such as "VeryHard+Sniper Quinn" or
+// "Fair \"Kamala Harris\"". Returns false if the line is not a bot header.
+inline bool parseBotHeader(const QString& trimmed,
+                           QString& skillOut,
+                           QString& weaponOut,
+                           QString& nameOut)
+{
+    const int spaceIdx = trimmed.indexOf(u' ');
+    if (spaceIdx < 0)
+        return false;
+
+    const QString templatePart = trimmed.left(spaceIdx);
+    QString namePart = trimmed.mid(spaceIdx + 1).trimmed();
+
+    // Strip inline comment
+    const int commentIdx = namePart.indexOf(QStringLiteral("//"));
+    if (commentIdx >= 0)
+        namePart = namePart.left(commentIdx).trimmed();
+
+    const int plusIdx = templatePart.indexOf(u'+');
+    QString skill, weapon;
+    if (plusIdx >= 0)
+    {
+        skill  = templatePart.left(plusIdx);
+        weapon = templatePart.mid(plusIdx + 1);
+    }
+    else
+    {
+        skill = templatePart;
+    }
+
+    if (knownSkillTemplates().contains(skill) == false)
+        return false;
+
+    // Strip surrounding quotes from name
+    if (namePart.startsWith(u'"') && namePart.endsWith(u'"') && namePart.length() >= 2)
+        namePart = namePart.mid(1, namePart.length() - 2);
+
+    if (namePart.isEmpty())
+        return false;
+
+    skillOut  = skill;
+    weaponOut = weapon;
+    nameOut   = namePart;
+    return true;
+}
+
+// Reads the individual bot profiles from BotProfile.db.
+// Template and Default blocks are skipped — only named bots are returned.
+inline QVector<BotProfile> readBotProfiles(const AppConfig::Game game)
+{
+    QVector<BotProfile> result;
+    QFile f(botProfilePath(game));
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text) == false)
+        return result;
+
+    QTextStream in(&f);
+    bool inBlock   = false; // inside a Template/Default block
+    bool inProfile = false; // inside a named bot profile block
+    BotProfile current;
+
+    while (in.atEnd() == false)
+    {
+        const QString line    = in.readLine();
+        const QString trimmed = line.trimmed();
+
+        if (inBlock)
+        {
+            if (trimmed.compare(QStringLiteral("End"), Qt::CaseInsensitive) == 0)
+                inBlock = false;
+            continue;
+        }
+
+        if (inProfile)
+        {
+            if (trimmed.compare(QStringLiteral("End"), Qt::CaseInsensitive) == 0)
+            {
+                result.append(current);
+                current    = {};
+                inProfile  = false;
+            }
+            else if (trimmed.startsWith(QStringLiteral("Skin"), Qt::CaseInsensitive))
+            {
+                const int eq = trimmed.indexOf(u'=');
+                if (eq >= 0) current.skin = trimmed.mid(eq + 1).trimmed().toInt();
+            }
+            else if (trimmed.startsWith(QStringLiteral("VoicePitch"), Qt::CaseInsensitive))
+            {
+                const int eq = trimmed.indexOf(u'=');
+                if (eq >= 0) current.voicePitch = trimmed.mid(eq + 1).trimmed().toInt();
+            }
+            else if (trimmed.startsWith(QStringLiteral("Cost"), Qt::CaseInsensitive))
+            {
+                const int eq = trimmed.indexOf(u'=');
+                if (eq >= 0) current.cost = trimmed.mid(eq + 1).trimmed().toInt();
+            }
+            continue;
+        }
+
+        if (trimmed.isEmpty() || trimmed.startsWith(QStringLiteral("//")))
+            continue;
+
+        if (trimmed.startsWith(QStringLiteral("Template"), Qt::CaseInsensitive) ||
+            trimmed.startsWith(QStringLiteral("Default"), Qt::CaseInsensitive))
+        {
+            inBlock = true;
+            continue;
+        }
+
+        QString skill, weapon, name;
+        if (parseBotHeader(trimmed, skill, weapon, name))
+        {
+            current            = {};
+            current.skillTemplate  = skill;
+            current.weaponTemplate = weapon;
+            current.name           = name;
+            inProfile              = true;
+        }
+    }
+
+    return result;
+}
+
+// Rewrites the individual bot profiles section of BotProfile.db, preserving
+// the header (comments, Default block, Template blocks) verbatim.
+inline bool writeBotProfiles(const AppConfig::Game game,
+                             const QVector<BotProfile>& profiles)
+{
+    const QString path = botProfilePath(game);
+
+    // ── Collect the header ────────────────────────────────────────────────────
+    QStringList headerLines;
+    {
+        QFile rf(path);
+        if (rf.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            QTextStream in(&rf);
+            bool inBlock = false;
+            QStringList pending;
+
+            while (in.atEnd() == false)
+            {
+                const QString line    = in.readLine();
+                const QString trimmed = line.trimmed();
+
+                if (inBlock)
+                {
+                    pending.append(line);
+                    if (trimmed.compare(QStringLiteral("End"), Qt::CaseInsensitive) == 0)
+                    {
+                        headerLines.append(pending);
+                        pending.clear();
+                        inBlock = false;
+                    }
+                    continue;
+                }
+
+                if (trimmed.isEmpty() || trimmed.startsWith(QStringLiteral("//")))
+                {
+                    pending.append(line);
+                    continue;
+                }
+
+                if (trimmed.startsWith(QStringLiteral("Template"), Qt::CaseInsensitive) ||
+                    trimmed.startsWith(QStringLiteral("Default"), Qt::CaseInsensitive))
+                {
+                    headerLines.append(pending);
+                    pending.clear();
+                    pending.append(line);
+                    inBlock = true;
+                    continue;
+                }
+
+                // First individual bot profile — header ends here.
+                headerLines.append(pending);
+                break;
+            }
+        }
+    }
+
+    // ── Write ─────────────────────────────────────────────────────────────────
+    if (QDir(gameDirectory(game)).exists() == false)
+        return false;
+
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text) == false)
+    {
+        DBG_APP(QStringLiteral("ServerFiles: could not write BotProfile.db"));
+        return false;
+    }
+
+    QTextStream out(&f);
+
+    for (const QString& l : std::as_const(headerLines))
+        out << l << u'\n';
+
+    out << QStringLiteral("\n//----------------------------------------------------------------------------\n\n");
+
+    for (const BotProfile& bot : profiles)
+    {
+        QString header = bot.skillTemplate;
+        if (bot.weaponTemplate.isEmpty() == false)
+            header += u'+' + bot.weaponTemplate;
+
+        if (bot.name.contains(u' '))
+            header += QStringLiteral(" \"") + bot.name + u'"';
+        else
+            header += u' ' + bot.name;
+
+        out << header << u'\n';
+
+        if (bot.skin > 0)
+            out << QStringLiteral("\tSkin = ") << bot.skin << u'\n';
+        out << QStringLiteral("\tVoicePitch = ") << bot.voicePitch << u'\n';
+        if (bot.cost >= 0)
+            out << QStringLiteral("\tCost = ") << bot.cost << u'\n';
+
+        out << QStringLiteral("End\n\n");
+    }
+
+    DBG_APP(QStringLiteral("ServerFiles: wrote BotProfile.db — ")
+            + QString::number(profiles.size()) + QStringLiteral(" profiles"));
+    return true;
+}
+
 } // namespace ServerFiles

@@ -38,6 +38,8 @@ set(SOURCES
         firewallHelpDialog.h
         dialogs/aboutDialog.h
         dialogs/aboutDialog.cpp
+        dialogs/botEditDialog.h
+        dialogs/botEditDialog.cpp
         dialogs/errorDetailsDialog.h
         dialogs/errorDetailsDialog.cpp
         dialogs/gameServerTypeDialog.h
