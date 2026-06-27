@@ -3,9 +3,11 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QWidget>
 
 #include "appConfig.h"
+#include "../serverFiles.h"
 
 class NumberSpinner;
 class ToggleSwitch;
@@ -27,6 +29,10 @@ private:
     void save(const QString& key, int value);
     void saveBotQuota();
     void saveBotTeam();
+    void refreshBotList();
+    void onAddBot();
+    void onEditBot(int row);
+    void onDeleteBot();
 
     // Quota & team (mirrors ServerPage quick-access controls)
     QWidget*          m_botOptions  = nullptr;  // count + team, shown when enabled
@@ -53,4 +59,8 @@ private:
     ToggleSwitch* m_allowMachineGuns    = nullptr;
     ToggleSwitch* m_allowGrenades       = nullptr;
     ToggleSwitch* m_allowShield         = nullptr;
+
+    // Bot profile list
+    QListWidget*                  m_botList     = nullptr;
+    QVector<ServerFiles::BotProfile> m_botProfiles;
 };

@@ -5,11 +5,15 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
 
 #include "appConfig.h"
 #include "debug.h"
+#include "dialogs/botEditDialog.h"
 #include "serverFiles.h"
 #include "widgets/numberSpinner.h"
 #include "widgets/toggleSwitch.h"
@@ -298,6 +302,54 @@ BotsPage::BotsPage(QWidget* parent) : QWidget(parent)
         });
     }
 
+    // ── Bot Profiles ──────────────────────────────────────────────────────────
+    {
+        QGroupBox* group = new QGroupBox(tr("Bot Profiles (BotProfile.db)"), content);
+        QVBoxLayout* grp = new QVBoxLayout(group);
+        grp->setSpacing(ROW_SPACING);
+
+        QLabel* hint = new QLabel(
+            tr("Individual bot personalities loaded from BotProfile.db. "
+               "Each bot inherits a skill template and optional weapon preference."),
+            group);
+        hint->setWordWrap(true);
+        hint->setStyleSheet(QStringLiteral("color: #888;"));
+        grp->addWidget(hint);
+
+        m_botList = new QListWidget(group);
+        m_botList->setAlternatingRowColors(true);
+        m_botList->setSelectionMode(QAbstractItemView::SingleSelection);
+        grp->addWidget(m_botList, 1);
+
+        QHBoxLayout* btnRow = new QHBoxLayout;
+        btnRow->setSpacing(8);
+        QPushButton* addBtn  = new QPushButton(tr("Add Bot"),    group);
+        QPushButton* editBtn = new QPushButton(tr("Edit Bot"),   group);
+        QPushButton* delBtn  = new QPushButton(tr("Delete Bot"), group);
+        editBtn->setObjectName(QStringLiteral("secondaryButton"));
+        delBtn->setObjectName(QStringLiteral("dangerButton"));
+        btnRow->addWidget(addBtn);
+        btnRow->addWidget(editBtn);
+        btnRow->addStretch();
+        btnRow->addWidget(delBtn);
+        grp->addLayout(btnRow);
+
+        contentLayout->addWidget(group);
+
+        connect(addBtn, &QPushButton::clicked, this, &BotsPage::onAddBot);
+        connect(editBtn, &QPushButton::clicked, this, [this]()
+        {
+            const int row = m_botList->currentRow();
+            if (row >= 0) onEditBot(row);
+        });
+        connect(delBtn, &QPushButton::clicked, this, &BotsPage::onDeleteBot);
+        connect(m_botList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*)
+        {
+            const int row = m_botList->currentRow();
+            if (row >= 0) onEditBot(row);
+        });
+    }
+
     contentLayout->addStretch();
 
     loadForGame(AppConfig::instance().selectedGame());
@@ -380,6 +432,10 @@ void BotsPage::loadForGame(const AppConfig::Game game)
     m_allowGrenades->setOn(cfg.botAllowGrenades         != 0, false);
     m_allowShield->setOn(cfg.botAllowShield             != 0, false);
 
+    // Bot profiles
+    m_botProfiles = ServerFiles::readBotProfiles(game);
+    refreshBotList();
+
     // Unblock signals
     block(m_botsEnabled,        false);
     block(m_botCount,           false);
@@ -417,6 +473,69 @@ void BotsPage::saveBotTeam()
     else if (t)    team = QStringLiteral("T");
     else           team = QStringLiteral("any");
     save(QStringLiteral("bot_join_team"), team);
+}
+
+void BotsPage::refreshBotList()
+{
+    m_botList->clear();
+    for (const ServerFiles::BotProfile& bot : std::as_const(m_botProfiles))
+    {
+        QString tag = bot.skillTemplate;
+        if (bot.weaponTemplate.isEmpty() == false)
+            tag += u'+' + bot.weaponTemplate;
+        m_botList->addItem(QStringLiteral("[%1]  %2").arg(tag, bot.name));
+    }
+}
+
+void BotsPage::onAddBot()
+{
+    BotEditDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    m_botProfiles.append(dlg.profile());
+    ServerFiles::writeBotProfiles(AppConfig::instance().selectedGame(), m_botProfiles);
+    refreshBotList();
+    m_botList->setCurrentRow(m_botProfiles.size() - 1);
+    emit settingChanged();
+}
+
+void BotsPage::onEditBot(const int row)
+{
+    if (row < 0 || row >= m_botProfiles.size())
+        return;
+
+    BotEditDialog dlg(m_botProfiles.at(row), this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    m_botProfiles[row] = dlg.profile();
+    ServerFiles::writeBotProfiles(AppConfig::instance().selectedGame(), m_botProfiles);
+    refreshBotList();
+    m_botList->setCurrentRow(row);
+    emit settingChanged();
+}
+
+void BotsPage::onDeleteBot()
+{
+    const int row = m_botList->currentRow();
+    if (row < 0 || row >= m_botProfiles.size())
+        return;
+
+    const QString name = m_botProfiles.at(row).name;
+    QMessageBox mb(this);
+    mb.setWindowTitle(tr("Delete Bot"));
+    mb.setText(tr("Remove \"%1\" from BotProfile.db?").arg(name));
+    mb.setIcon(QMessageBox::Question);
+    mb.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
+    mb.setDefaultButton(QMessageBox::Cancel);
+    if (mb.exec() != QMessageBox::Yes)
+        return;
+
+    m_botProfiles.remove(row);
+    ServerFiles::writeBotProfiles(AppConfig::instance().selectedGame(), m_botProfiles);
+    refreshBotList();
+    emit settingChanged();
 }
 
 void BotsPage::save(const QString& key, const QString& value)
