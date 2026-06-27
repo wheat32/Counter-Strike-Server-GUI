@@ -25,11 +25,17 @@ public:
     // Reload IP, port, and server files for the given game.
     void loadForGame(AppConfig::Game game);
 
+    // Update the map combo to reflect a selection made on the Maps page.
+    void setStartMap(const QString& map);
+
     // Current UI values — used by MainWindow to build the hlds_run command line.
     [[nodiscard]] QString currentIp()   const;
     [[nodiscard]] int     currentPort() const;
     [[nodiscard]] QString currentMap()  const;
     [[nodiscard]] int     maxPlayers()  const;
+
+signals:
+    void settingChanged();
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -64,7 +70,8 @@ private:
     NumberSpinner*   m_maxPlayersSpinner = nullptr;
     NumberSpinner*   m_timeLimitSpinner  = nullptr;
 
-    // Bots
+    // Bots (hidden entirely for CS 1.6)
+    QWidget*          m_botsGroup        = nullptr;
     ToggleWithStatus* m_botsToggle       = nullptr;
     QWidget*          m_botOptions       = nullptr;
     NumberSpinner*    m_botCountSpinner  = nullptr;

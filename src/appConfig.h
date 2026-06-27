@@ -49,6 +49,14 @@ public:
     void setCs16MaxPlayers(int value);
     void setCzMaxPlayers(int value);
 
+    // Update check
+    bool checkForUpdates() const;
+    void setCheckForUpdates(bool value);
+
+    // Last seen version (for What's New dialog)
+    QString lastSeenVersion() const;
+    void    setLastSeenVersion(const QString& version);
+
     void resetToDefaults();
 
 private:
@@ -69,4 +77,7 @@ private:
 
     int  m_cs16MaxPlayers = 20;
     int  m_czMaxPlayers   = 20;
+
+    bool    m_checkForUpdates = true;
+    QString m_lastSeenVersion;
 };

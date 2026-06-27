@@ -361,6 +361,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
     // ── Bots ──────────────────────────────────────────────────────────────────
     {
         QGroupBox* group = new QGroupBox(tr("Bots"), content);
+        m_botsGroup = group;
         QVBoxLayout* groupLayout = new QVBoxLayout(group);
         groupLayout->setSpacing(FORM_SPACING);
 
@@ -425,6 +426,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
             AppConfig::instance().setCzMaxPlayers(value);
         else
             AppConfig::instance().setCs16MaxPlayers(value);
+        emit settingChanged();
     });
 
     // Time limit and bots write directly to server.cfg (not AppConfig).
@@ -433,6 +435,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         ServerFiles::writeServerConfigValue(AppConfig::instance().selectedGame(),
                                             QStringLiteral("mp_timelimit"),
                                             QString::number(value));
+        emit settingChanged();
     });
 
     connect(m_botsToggle, &ToggleWithStatus::toggled, this, [this](const bool on)
@@ -442,6 +445,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         ServerFiles::writeServerConfigValue(AppConfig::instance().selectedGame(),
                                             QStringLiteral("bot_quota"),
                                             QString::number(quota));
+        emit settingChanged();
     });
 
     connect(m_botCountSpinner, &NumberSpinner::valueChanged, this, [this](const int value)
@@ -451,6 +455,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         ServerFiles::writeServerConfigValue(AppConfig::instance().selectedGame(),
                                             QStringLiteral("bot_quota"),
                                             QString::number(value));
+        emit settingChanged();
     });
 
     connect(m_ctBotsCheck, &QCheckBox::toggled, this, [this](bool)
@@ -468,13 +473,10 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         if (text.isEmpty()) return; // fired by clear() — not a real selection
         const AppConfig::Game game = AppConfig::instance().selectedGame();
         if (game == AppConfig::Game::CZ)
-        {
             AppConfig::instance().setCzStartMap(text);
-        }
         else
-        {
             AppConfig::instance().setCs16StartMap(text);
-        }
+        emit settingChanged();
     });
 
     connect(m_hostnameEdit, &QLineEdit::editingFinished, this, [this]()
@@ -485,6 +487,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
                                                 QStringLiteral("hostname"), current))
         {
             m_loadedHostname = current;
+            emit settingChanged();
         }
     });
 
@@ -496,6 +499,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
                                                 QStringLiteral("sv_password"), current))
         {
             m_loadedPassword = current;
+            emit settingChanged();
         }
     });
 
@@ -517,6 +521,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         if (ServerFiles::writeMotd(AppConfig::instance().selectedGame(), current))
         {
             m_loadedMotd = current;
+            emit settingChanged();
         }
     });
 
@@ -526,6 +531,8 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
 
 void ServerPage::loadForGame(const AppConfig::Game game)
 {
+    // CS 1.6 has no native bot support — hide the whole bots section.
+    m_botsGroup->setVisible(game == AppConfig::Game::CZ);
     const QString ip   = (game == AppConfig::Game::CZ)
         ? AppConfig::instance().czIp()
         : AppConfig::instance().cs16Ip();
@@ -560,12 +567,13 @@ void ServerPage::loadForGame(const AppConfig::Game game)
             : AppConfig::instance().cs16StartMap();
 
         const QStringList maps = ServerFiles::scanMaps(game);
+        m_mapCombo->blockSignals(true);
         m_mapCombo->clear();
         m_mapCombo->addItems(maps);
-
         const int savedIdx = m_mapCombo->findText(savedMap, Qt::MatchFixedString);
         // Fall back to the first map if the saved one is no longer present
         m_mapCombo->setCurrentIndex(savedIdx >= 0 ? savedIdx : 0);
+        m_mapCombo->blockSignals(false);
 
         m_loadedMotd = ServerFiles::readMotd(game);
         m_motdEdit->setPlainText(m_loadedMotd);
@@ -585,9 +593,9 @@ void ServerPage::loadForGame(const AppConfig::Game game)
         }
 
         // Time limit
-        if (cfg.timeLimit >= 0)
+        if (cfg.mpTimelimit >= 0)
         {
-            m_timeLimitSpinner->setValue(cfg.timeLimit);
+            m_timeLimitSpinner->setValue(cfg.mpTimelimit);
         }
 
         // Bots: bot_quota 0 → disabled, > 0 → enabled with that count
@@ -681,6 +689,15 @@ QString ServerPage::currentIp()   const { return m_ipEdit->text(); }
 int     ServerPage::currentPort() const { return m_portSpinner->value(); }
 QString ServerPage::currentMap()  const { return m_mapCombo->currentText(); }
 int     ServerPage::maxPlayers()  const { return m_maxPlayersSpinner->value(); }
+
+void ServerPage::setStartMap(const QString& map)
+{
+    const int idx = m_mapCombo->findText(map, Qt::MatchFixedString);
+    if (idx < 0) return;
+    m_mapCombo->blockSignals(true);
+    m_mapCombo->setCurrentIndex(idx);
+    m_mapCombo->blockSignals(false);
+}
 
 void ServerPage::refreshPasswordToggleIcon()
 {
@@ -795,4 +812,5 @@ void ServerPage::writeBotsTeamToConfig()
     ServerFiles::writeServerConfigValue(AppConfig::instance().selectedGame(),
                                         QStringLiteral("bot_join_team"),
                                         teamValue);
+    emit settingChanged();
 }

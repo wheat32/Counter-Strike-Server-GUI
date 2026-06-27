@@ -12,7 +12,9 @@
 #include "cli/appImageUtils.h"
 #include "cli/platformUtils.h"
 #include "debug.h"
+#include "dialogs/gameServerTypeDialog.h"
 #include "mainWindow.h"
+#include "serverFiles.h"
 #include "serverSetupDialog.h"
 #include "serverUtils.h"
 #include "themeManager.h"
@@ -65,9 +67,7 @@ int main(int argc, char* argv[])
     QApplication::setWindowIcon(QIcon(startupIcon));
 
 
-    // ── AppImage: auto-detect server location ─────────────────────────────────
-    // If the AppImage is placed alongside hlds_run, configure both game paths
-    // automatically so the user does not need to manually set them.
+    // ── AppImage: detect co-located server ───────────────────────────────────
     if (isRunningAsAppImage())
     {
         const QString appImageFile = qEnvironmentVariable("APPIMAGE");
@@ -75,14 +75,28 @@ int main(int argc, char* argv[])
 
         if (isValidServerPath(appImageDir))
         {
-            DBG_APP(QStringLiteral("AppImage co-located with hlds_run — auto-configuring server paths."));
-            if (AppConfig::instance().cs16ServerPath().isEmpty())
+            const bool neitherPathSet = AppConfig::instance().cs16ServerPath().isEmpty()
+                                     && AppConfig::instance().czServerPath().isEmpty();
+
+            if (neitherPathSet)
             {
+                // First launch co-located with hlds_run — ask the user which game.
+                GameServerTypeDialog gameTypeDlg;
+                gameTypeDlg.exec();
+                const AppConfig::Game chosen = gameTypeDlg.selectedGame();
+                DBG_APP(QStringLiteral("User identified server as: ")
+                        + (chosen == AppConfig::Game::CZ ? QStringLiteral("CZ") : QStringLiteral("CS16")));
+                AppConfig::instance().setSelectedGame(chosen);
+                AppConfig::instance().setCzServerPath(appImageDir);
                 AppConfig::instance().setCs16ServerPath(appImageDir);
             }
-            if (AppConfig::instance().czServerPath().isEmpty())
+            else
             {
-                AppConfig::instance().setCzServerPath(appImageDir);
+                DBG_APP(QStringLiteral("AppImage co-located with hlds_run — auto-configuring unset paths."));
+                if (AppConfig::instance().cs16ServerPath().isEmpty())
+                    AppConfig::instance().setCs16ServerPath(appImageDir);
+                if (AppConfig::instance().czServerPath().isEmpty())
+                    AppConfig::instance().setCzServerPath(appImageDir);
             }
         }
     }
@@ -111,6 +125,20 @@ int main(int argc, char* argv[])
         }
         // Sync the main window in case the dialog switched the selected game.
         window.syncGameSelection();
+    }
+
+    // ── Ensure default config files exist for the active game ────────────────
+    {
+        const AppConfig::Game activeGame = AppConfig::instance().selectedGame();
+        const QString activePath = (activeGame == AppConfig::Game::CZ)
+            ? AppConfig::instance().czServerPath()
+            : AppConfig::instance().cs16ServerPath();
+
+        if (isValidServerPath(activePath))
+        {
+            ServerFiles::ensureServerConfig(activeGame);
+            ServerFiles::ensureMotd(activeGame);
+        }
     }
 
     return QApplication::exec();

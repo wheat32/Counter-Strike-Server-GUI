@@ -65,8 +65,10 @@ void AppConfig::load()
     m_cs16StartMap = obj.value(QStringLiteral("cs16_start_map")).toString();
     m_czStartMap   = obj.value(QStringLiteral("cz_start_map")).toString();
 
-    m_cs16MaxPlayers = obj.value(QStringLiteral("cs16_max_players")).toInt(20);
-    m_czMaxPlayers   = obj.value(QStringLiteral("cz_max_players")).toInt(20);
+    m_cs16MaxPlayers  = obj.value(QStringLiteral("cs16_max_players")).toInt(20);
+    m_czMaxPlayers    = obj.value(QStringLiteral("cz_max_players")).toInt(20);
+    m_checkForUpdates = obj.value(QStringLiteral("check_for_updates")).toBool(true);
+    m_lastSeenVersion = obj.value(QStringLiteral("last_seen_version")).toString();
 
     DBG_SETTINGS(QStringLiteral("Config loaded from: ") + configFile());
     DBG_SETTINGS(QStringLiteral("  theme            = ") + themeStr);
@@ -75,8 +77,10 @@ void AppConfig::load()
     DBG_SETTINGS(QStringLiteral("  cz_server_path   = ") + m_czServerPath);
     DBG_SETTINGS(QStringLiteral("  cs16_ip          = ") + m_cs16Ip);
     DBG_SETTINGS(QStringLiteral("  cz_ip            = ") + m_czIp);
-    DBG_SETTINGS(QStringLiteral("  cs16_port        = ") + QString::number(m_cs16Port));
-    DBG_SETTINGS(QStringLiteral("  cz_port          = ") + QString::number(m_czPort));
+    DBG_SETTINGS(QStringLiteral("  cs16_port          = ") + QString::number(m_cs16Port));
+    DBG_SETTINGS(QStringLiteral("  cz_port            = ") + QString::number(m_czPort));
+    DBG_SETTINGS(QStringLiteral("  check_for_updates  = ") + (m_checkForUpdates ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  last_seen_version  = ") + m_lastSeenVersion);
 }
 
 bool AppConfig::save() const
@@ -113,8 +117,10 @@ bool AppConfig::save() const
     obj[QStringLiteral("cz_port")]          = m_czPort;
     obj[QStringLiteral("cs16_start_map")]       = m_cs16StartMap;
     obj[QStringLiteral("cz_start_map")]         = m_czStartMap;
-    obj[QStringLiteral("cs16_max_players")] = m_cs16MaxPlayers;
-    obj[QStringLiteral("cz_max_players")]   = m_czMaxPlayers;
+    obj[QStringLiteral("cs16_max_players")]  = m_cs16MaxPlayers;
+    obj[QStringLiteral("cz_max_players")]    = m_czMaxPlayers;
+    obj[QStringLiteral("check_for_updates")] = m_checkForUpdates;
+    obj[QStringLiteral("last_seen_version")] = m_lastSeenVersion;
 
     QFile f(configFile());
     if (f.open(QIODevice::WriteOnly | QIODevice::Text) == false)
@@ -248,6 +254,24 @@ void AppConfig::setCzStartMap(const QString& map)
     (void)save();
 }
 
+bool AppConfig::checkForUpdates() const { return m_checkForUpdates; }
+
+void AppConfig::setCheckForUpdates(const bool value)
+{
+    if (m_checkForUpdates == value) return;
+    m_checkForUpdates = value;
+    (void)save();
+}
+
+QString AppConfig::lastSeenVersion() const { return m_lastSeenVersion; }
+
+void AppConfig::setLastSeenVersion(const QString& version)
+{
+    if (m_lastSeenVersion == version) return;
+    m_lastSeenVersion = version;
+    (void)save();
+}
+
 void AppConfig::resetToDefaults()
 {
     DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults()"));
@@ -262,6 +286,8 @@ void AppConfig::resetToDefaults()
     m_czPort         = DEFAULT_PORT;
     m_cs16StartMap      = QString();
     m_czStartMap        = QString();
-    m_cs16MaxPlayers = 20;
-    m_czMaxPlayers   = 20;
+    m_cs16MaxPlayers  = 20;
+    m_czMaxPlayers    = 20;
+    m_checkForUpdates = true;
+    m_lastSeenVersion = QString();
 }
