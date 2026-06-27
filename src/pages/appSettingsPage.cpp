@@ -190,7 +190,7 @@ AppSettingsPage::AppSettingsPage(QWidget* parent) : QWidget(parent)
         QGroupBox* group = new QGroupBox(tr("About"), content);
         QHBoxLayout* groupLayout = new QHBoxLayout(group);
 
-        QPushButton* aboutBtn = new QPushButton(tr("About CS Server Manager"), group);
+        QPushButton* aboutBtn = new QPushButton(tr("About CS Server Manager "), group);
         aboutBtn->setIcon(renderSvgIcon(QStringLiteral(":/assets/box-arrow-up-right.svg"),
                                         palette().color(QPalette::WindowText),
                                         ABOUT_ICON_SIZE));

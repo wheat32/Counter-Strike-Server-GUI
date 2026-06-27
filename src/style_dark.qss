@@ -59,6 +59,7 @@ QPlainTextEdit {
     border: 1px solid palette(mid);
     border-radius: 4px;
     padding: 4px 8px;
+    min-height: 22px;
     selection-background-color: palette(highlight);
     selection-color: palette(highlighted-text);
 }
@@ -82,6 +83,7 @@ QComboBox {
     border: 1px solid palette(mid);
     border-radius: 4px;
     padding: 4px 8px;
+    min-height: 24px;
 }
 
 QComboBox:hover {
@@ -110,6 +112,11 @@ QComboBox QAbstractItemView {
     selection-background-color: palette(highlight);
     selection-color: palette(highlighted-text);
     outline: 0;
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 28px;
+    padding: 1px 4px;
 }
 
 /* === Check Boxes === */
@@ -243,6 +250,10 @@ QTableWidget {
     border: 1px solid palette(mid);
     border-radius: 4px;
     outline: 0;
+}
+
+QListWidget::item {
+    padding: 2px 4px;
 }
 
 QListWidget::item:hover,
