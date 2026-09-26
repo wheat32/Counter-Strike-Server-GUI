@@ -36,16 +36,15 @@ cmake --build cmake-build-debug
 ./cmake-build-debug/cs_server_manager
 ```
 
-## Flatpak Sandboxing
+## Flatpak / AppImage Sandboxing
 
-All `QProcess` spawning **must** go through `buildHostCommand()` (`cli/flatpakUtils.h`):
+All `QProcess` spawning **must** go through `startHostCommand()` (`cli/flatpakUtils.h`):
 
 ```cpp
-auto [prog, args] = buildHostCommand("hlds_run", {"-game", "czero", "+port", "27015"});
-process->start(prog, args);
+startHostCommand(process, serverPath + "/hlds_run", {"-game", "czero", "-port", "27015"}, serverPath);
 ```
 
-This transparently wraps commands with `flatpak-spawn --host` when inside a Flatpak sandbox (detected via `$FLATPAK_ID`). Never call `QProcess::start("hlds_run", ...)` directly.
+It wraps the command with `flatpak-spawn --host` inside a Flatpak sandbox (detected via `$FLATPAK_ID`, see `buildHostCommand()`), and inside an AppImage it removes the bundle's `lib/` and `plugins/` directories from `LD_LIBRARY_PATH`/`QT_PLUGIN_PATH` (`hostProcessEnvironment()` in `cli/appImageUtils.h`) so host programs such as `firewall-cmd` don't load the bundled libraries. Never call `QProcess::start()` directly.
 
 ## Key Files
 
@@ -54,7 +53,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 | `appConfig.h/cpp` | App preferences → `~/.config/CSServerManager/app.json` |
 | `themeManager.h/cpp` | Applies palette + QSS stylesheet; dark/light/system themes |
 | `main.cpp` | App init, version from `version.json`, theme apply, main window |
-| `cli/flatpakUtils.h` | `buildHostCommand()` for Flatpak-safe subprocess spawning |
+| `cli/flatpakUtils.h` | `startHostCommand()` / `buildHostCommand()` for Flatpak- and AppImage-safe subprocess spawning |
 | `cli/platformUtils.h` | Detects Flatpak / AppImage runtime environment |
 | `style_dark.qss` | Dark theme styles (CS orange accent `#e87832`) |
 | `style_light.qss` | Light theme styles (darker orange `#c96820`) |
@@ -93,6 +92,20 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
   String literals, boolean literals, enumerators, and the literal `0` when used as a neutral zero are exempt.
 
 - **Brace style**: GNU/Allman — opening brace on its own line for functions, classes, and control structures
+- **QSS brace style**: `.qss` files use GNU/Allman too — the opening brace goes on its own line after the selector (or the last selector of a list):
+  ```css
+  /* OK */
+  QComboBox:hover,
+  QComboBox:focus
+  {
+      border-color: #c8a800;
+  }
+
+  /* Not OK */
+  QComboBox:hover {
+      border-color: #c8a800;
+  }
+  ```
 - **`auto`**: avoid for simple/obvious types; use explicit types (`int count = 0;`, `QString name = ...`). `auto` is fine where the type is verbose or deduced from a template.
 - **Loop bodies**: ALL loops (`for`, `while`) must use curly braces — no single-line unbraced loops
 - **No `do`/`while` loops**: use a `while` loop instead
@@ -123,7 +136,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 
 ## Testing
 
-Tests live in `src/tests/` and use **Qt Test** (`QtTest/QtTest`). Each test file maps to one logical unit — the naming convention is `tst_<unit>.cpp`.
+Tests live in `src/tests/` and use **Qt Test** (`QtTest/QtTest`). Each test file maps to one logical unit — the naming convention is `tst_<unit>.cpp`. Tests are built with Debug builds only; run them with `ctest --output-on-failure` from the build directory.
 
 **When to write tests:** write a test for any class/function that has pure or near-pure logic — parsers, config helpers, map scanners, utility functions. Do **not** try to test `QWidget` subclasses or `ServerManager` (subprocess-dependent).
 

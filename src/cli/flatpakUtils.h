@@ -4,6 +4,7 @@
 
 #include "appImageUtils.h"
 
+#include <QProcess>
 #include <QString>
 #include <QStringList>
 #include <utility>
@@ -23,10 +24,8 @@ inline bool isRunningAsFlatpak()
 // For native builds, also call QProcess::setWorkingDirectory() separately.
 // For Flatpak, the directory is forwarded via --directory= to flatpak-spawn.
 //
-// Example:
-//   auto [prog, args] = buildHostCommand("/path/hlds_run", {"-game", "czero"}, "/path");
-//   proc.setWorkingDirectory("/path");
-//   proc.start(prog, args);
+// Prefer startHostCommand(), which also handles the environment and working
+// directory.
 inline std::pair<QString, QStringList> buildHostCommand(const QString& program,
                                                         const QStringList& args = {},
                                                         const QString& workingDir = {})
@@ -43,4 +42,27 @@ inline std::pair<QString, QStringList> buildHostCommand(const QString& program,
         return {QStringLiteral("flatpak-spawn"), spawnArgs};
     }
     return {program, args};
+}
+
+// Starts a host program on proc. Use this instead of QProcess::start():
+// - wraps the command with flatpak-spawn --host inside Flatpak (buildHostCommand)
+// - removes the AppImage's bundled library paths from the environment
+//   (hostProcessEnvironment)
+// - sets the working directory when workingDir is non-empty
+//
+// Example:
+//   startHostCommand(proc, "/path/hlds_run", {"-game", "czero"}, "/path");
+inline void startHostCommand(QProcess*          proc,
+                             const QString&     program,
+                             const QStringList& args = {},
+                             const QString&     workingDir = {})
+{
+    if (workingDir.isEmpty() == false)
+    {
+        proc->setWorkingDirectory(workingDir);
+    }
+    proc->setProcessEnvironment(hostProcessEnvironment());
+
+    auto [prog, fullArgs] = buildHostCommand(program, args, workingDir);
+    proc->start(prog, fullArgs);
 }

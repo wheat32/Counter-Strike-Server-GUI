@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMessageBox>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
@@ -228,6 +229,23 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
         setServerRunning(false);
     });
 
+    // The server is already being stopped when failed() fires; stopped() then
+    // resets the button. Tell the user why it stopped.
+    connect(m_serverManager, &ServerManager::failed, this, [this](const QString& reason)
+    {
+        m_serverStarting = false;
+        m_serverRunning  = false;
+        m_startStopBtn->setEnabled(false);
+        m_startStopBtn->setText(tr("Stopping Server..."));
+
+        QMessageBox* mb = new QMessageBox(QMessageBox::Warning, tr("Server Stopped"),
+                                          tr("The server was stopped because of an error."),
+                                          QMessageBox::Ok, this);
+        mb->setInformativeText(reason);
+        mb->setAttribute(Qt::WA_DeleteOnClose);
+        mb->open();
+    });
+
     connect(m_serverControlsPage, &ServerControlsPage::commandSubmitted,
             m_serverManager, &ServerManager::sendCommand);
 
@@ -236,8 +254,9 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     // ── Initial bot nav visibility ────────────────────────────────────────────
     m_botsNavBtn->setVisible(AppConfig::instance().selectedGame() == AppConfig::Game::CZ);
 
-    // ── Maps page → keep ServerPage combo in sync ─────────────────────────────
+    // ── Maps page ↔ Server page: keep both map dropdowns in sync ──────────────
     connect(m_mapsPage, &MapsPage::mapSelected, m_serverPage, &ServerPage::setStartMap);
+    connect(m_serverPage, &ServerPage::mapSelected, m_mapsPage, &MapsPage::setStartMap);
 
     // ── Restart-required toast ────────────────────────────────────────────────
     connect(m_serverPage,         &ServerPage::settingChanged,

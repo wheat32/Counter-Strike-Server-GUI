@@ -27,6 +27,7 @@
 #include <QSvgRenderer>
 
 #include "cli/flatpakUtils.h"
+#include "dialogs/mapBrowserDialog.h"
 #include "firewallHelpDialog.h"
 #include "serverFiles.h"
 #include "widgets/htmlHighlighter.h"
@@ -313,19 +314,15 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
             m_firewallHelpLink->setVisible(false);
         });
 
-        // Manual check button — use checkNow() to skip the debounce delay
-        connect(m_firewallCheckBtn, &QPushButton::clicked, this, [this]()
-        {
-            m_firewallLabel->setVisible(false);
-            m_firewallHelpLink->setVisible(false);
-            m_firewallChecker->checkNow(m_portSpinner->value());
-        });
+        connect(m_firewallCheckBtn, &QPushButton::clicked, this, &ServerPage::recheckFirewall);
 
-        // Fix-link opens the help dialog
+        // Fix-link opens the help dialog; re-check once it closes so the status
+        // reflects any commands the user just ran.
         connect(m_firewallHelpLink, &QLabel::linkActivated, this, [this](const QString&)
         {
             FirewallHelpDialog dlg(m_portSpinner->value(), m_lastFirewallType, this);
             dlg.exec();
+            recheckFirewall();
         });
     }
 
@@ -335,8 +332,20 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         QFormLayout* form = new QFormLayout(group);
         form->setSpacing(FORM_SPACING);
 
-        m_mapCombo = new QComboBox(group);
-        form->addRow(tr("Map:"), m_mapCombo);
+        // Map row: [dropdown] [Browse All Maps button]
+        QWidget* mapRow = new QWidget(group);
+        QHBoxLayout* mapLayout = new QHBoxLayout(mapRow);
+        mapLayout->setContentsMargins(0, 0, 0, 0);
+        mapLayout->setSpacing(PORT_ROW_SPACING);
+
+        m_mapCombo = new QComboBox(mapRow);
+        mapLayout->addWidget(m_mapCombo, 1);
+
+        m_browseMapsBtn = new QPushButton(tr("Browse All Maps…"), mapRow);
+        mapLayout->addWidget(m_browseMapsBtn);
+        connect(m_browseMapsBtn, &QPushButton::clicked, this, &ServerPage::openMapBrowser);
+
+        form->addRow(tr("Map:"), mapRow);
 
         m_maxPlayersSpinner = new NumberSpinner(group);
         m_maxPlayersSpinner->setRange(MAX_PLAYERS_MIN, MAX_PLAYERS_MAX);
@@ -476,6 +485,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
             AppConfig::instance().setCzStartMap(text);
         else
             AppConfig::instance().setCs16StartMap(text);
+        emit mapSelected(text);
         emit settingChanged();
     });
 
@@ -566,10 +576,11 @@ void ServerPage::loadForGame(const AppConfig::Game game)
             ? AppConfig::instance().czStartMap()
             : AppConfig::instance().cs16StartMap();
 
-        const QStringList maps = ServerFiles::scanMaps(game);
+        m_allMaps = ServerFiles::scanMaps(game);
         m_mapCombo->blockSignals(true);
         m_mapCombo->clear();
-        m_mapCombo->addItems(maps);
+        m_mapCombo->addItems(m_allMaps);
+        m_browseMapsBtn->setEnabled(m_allMaps.isEmpty() == false);
         const int savedIdx = m_mapCombo->findText(savedMap, Qt::MatchFixedString);
         // Fall back to the first map if the saved one is no longer present
         m_mapCombo->setCurrentIndex(savedIdx >= 0 ? savedIdx : 0);
@@ -620,7 +631,9 @@ void ServerPage::loadForGame(const AppConfig::Game game)
     }
     else
     {
+        m_allMaps.clear();
         m_mapCombo->clear();
+        m_browseMapsBtn->setEnabled(false);
         m_loadedHostname.clear();
         m_loadedPassword.clear();
         m_loadedMotd.clear();
@@ -690,6 +703,19 @@ int     ServerPage::currentPort() const { return m_portSpinner->value(); }
 QString ServerPage::currentMap()  const { return m_mapCombo->currentText(); }
 int     ServerPage::maxPlayers()  const { return m_maxPlayersSpinner->value(); }
 
+void ServerPage::openMapBrowser()
+{
+    MapBrowserDialog dlg(m_allMaps, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    // Selecting it saves the start map and notifies the Maps page.
+    const int idx = m_mapCombo->findText(dlg.selectedMap(), Qt::MatchFixedString);
+    if (idx >= 0)
+    {
+        m_mapCombo->setCurrentIndex(idx);
+    }
+}
+
 void ServerPage::setStartMap(const QString& map)
 {
     const int idx = m_mapCombo->findText(map, Qt::MatchFixedString);
@@ -722,12 +748,19 @@ void ServerPage::changeEvent(QEvent* event)
     }
 }
 
+void ServerPage::recheckFirewall()
+{
+    m_firewallLabel->setVisible(false);
+    m_firewallHelpLink->setVisible(false);
+    // checkNow() skips the debounce delay.
+    m_firewallChecker->checkNow(m_portSpinner->value());
+}
+
 void ServerPage::detectLocalIp()
 {
     m_detectIpBtn->setEnabled(false);
     m_detectIpBtn->setText(tr("Detecting…"));
 
-    auto [prog, args] = buildHostCommand(QStringLiteral("ifconfig"), {});
     QProcess* proc = new QProcess(this);
 
     // Restore the button regardless of success or failure.
@@ -783,7 +816,7 @@ void ServerPage::detectLocalIp()
         restoreBtn();
     });
 
-    proc->start(prog, args);
+    startHostCommand(proc, QStringLiteral("ifconfig"));
 }
 
 void ServerPage::writeBotsTeamToConfig()

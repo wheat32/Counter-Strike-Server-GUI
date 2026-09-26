@@ -29,7 +29,9 @@ set(SOURCES
         mainWindow.cpp
         serverUtils.h
         serverFiles.h
+        mapTypes.h
         serverManager.h
+        serverOutput.h
         serverManager.cpp
         serverSetupDialog.h
         serverSetupDialog.cpp
@@ -44,6 +46,8 @@ set(SOURCES
         dialogs/errorDetailsDialog.cpp
         dialogs/gameServerTypeDialog.h
         dialogs/gameServerTypeDialog.cpp
+        dialogs/mapBrowserDialog.h
+        dialogs/mapBrowserDialog.cpp
         dialogs/updateAvailableDialog.h
         dialogs/updateAvailableDialog.cpp
         dialogs/whatsNewDialog.h
@@ -94,6 +98,12 @@ target_link_libraries(cs_server_manager
         Qt6::Svg
         Qt6::SvgWidgets
 )
+
+# Unit tests (tests/) are built with Debug builds and run with ctest.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 install(TARGETS cs_server_manager
         RUNTIME DESTINATION bin

@@ -5,6 +5,9 @@
 #include <QWidget>
 
 #include "appConfig.h"
+#include "mapTypes.h"
+
+class QPushButton;
 
 class MapsPage : public QWidget
 {
@@ -14,14 +17,26 @@ public:
     explicit MapsPage(QWidget* parent = nullptr);
     void loadForGame(AppConfig::Game game);
 
+    // Update the dropdown to reflect a start map picked on the Server page,
+    // turning on any filters that hide it. Does not emit mapSelected().
+    void setStartMap(const QString& map);
+
 signals:
     void mapSelected(const QString& map);
     void settingChanged();
 
 private:
     void applyFilters();
+    void openMapBrowser();
 
-    QComboBox* m_mapCombo = nullptr;
+    // Turns on the version and type filters the map needs to be listed.
+    void showInFilters(const QString& map);
+
+    // Returns the filter checkbox for a map type.
+    QCheckBox* typeFilter(MapTypes::MapType type) const;
+
+    QComboBox*   m_mapCombo  = nullptr;
+    QPushButton* m_browseBtn = nullptr;
 
     // Version filters
     QCheckBox* m_showStandard = nullptr;
