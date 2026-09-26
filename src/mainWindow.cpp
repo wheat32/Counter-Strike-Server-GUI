@@ -254,8 +254,9 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     // ── Initial bot nav visibility ────────────────────────────────────────────
     m_botsNavBtn->setVisible(AppConfig::instance().selectedGame() == AppConfig::Game::CZ);
 
-    // ── Maps page → keep ServerPage combo in sync ─────────────────────────────
+    // ── Maps page ↔ Server page: keep both map dropdowns in sync ──────────────
     connect(m_mapsPage, &MapsPage::mapSelected, m_serverPage, &ServerPage::setStartMap);
+    connect(m_serverPage, &ServerPage::mapSelected, m_mapsPage, &MapsPage::setStartMap);
 
     // ── Restart-required toast ────────────────────────────────────────────────
     connect(m_serverPage,         &ServerPage::settingChanged,

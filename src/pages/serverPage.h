@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QStringList>
 #include <QWidget>
 #include "appConfig.h"
 #include "firewallChecker.h"
@@ -26,6 +27,7 @@ public:
     void loadForGame(AppConfig::Game game);
 
     // Update the map combo to reflect a selection made on the Maps page.
+    // Does not emit mapSelected().
     void setStartMap(const QString& map);
 
     // Current UI values — used by MainWindow to build the hlds_run command line.
@@ -36,6 +38,9 @@ public:
 
 signals:
     void settingChanged();
+
+    // Emitted when the user picks a start map on this page.
+    void mapSelected(const QString& map);
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -67,6 +72,8 @@ private:
 
     // Gameplay
     QComboBox*       m_mapCombo          = nullptr;
+    QPushButton*     m_browseMapsBtn     = nullptr;
+    QStringList      m_allMaps;
     NumberSpinner*   m_maxPlayersSpinner = nullptr;
     NumberSpinner*   m_timeLimitSpinner  = nullptr;
 
@@ -81,6 +88,7 @@ private:
     void refreshPasswordToggleIcon();
     void writeBotsTeamToConfig();
     void detectLocalIp();
+    void openMapBrowser();
     void recheckFirewall();
     void onFirewallResult(int port, FirewallChecker::Status status, FirewallChecker::FirewallType type);
 };

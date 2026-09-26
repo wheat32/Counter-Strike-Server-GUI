@@ -29,6 +29,7 @@ set(SOURCES
         mainWindow.cpp
         serverUtils.h
         serverFiles.h
+        mapTypes.h
         serverManager.h
         serverOutput.h
         serverManager.cpp
@@ -45,6 +46,8 @@ set(SOURCES
         dialogs/errorDetailsDialog.cpp
         dialogs/gameServerTypeDialog.h
         dialogs/gameServerTypeDialog.cpp
+        dialogs/mapBrowserDialog.h
+        dialogs/mapBrowserDialog.cpp
         dialogs/updateAvailableDialog.h
         dialogs/updateAvailableDialog.cpp
         dialogs/whatsNewDialog.h

@@ -25,3 +25,8 @@ add_qt_test(tst_appImageUtils
     tst_appImageUtils.cpp
     ../cli/appImageUtils.h
 )
+
+add_qt_test(tst_mapTypes
+    tst_mapTypes.cpp
+    ../mapTypes.h
+)

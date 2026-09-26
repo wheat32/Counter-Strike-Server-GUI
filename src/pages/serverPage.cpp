@@ -27,6 +27,7 @@
 #include <QSvgRenderer>
 
 #include "cli/flatpakUtils.h"
+#include "dialogs/mapBrowserDialog.h"
 #include "firewallHelpDialog.h"
 #include "serverFiles.h"
 #include "widgets/htmlHighlighter.h"
@@ -331,8 +332,20 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
         QFormLayout* form = new QFormLayout(group);
         form->setSpacing(FORM_SPACING);
 
-        m_mapCombo = new QComboBox(group);
-        form->addRow(tr("Map:"), m_mapCombo);
+        // Map row: [dropdown] [Browse All Maps button]
+        QWidget* mapRow = new QWidget(group);
+        QHBoxLayout* mapLayout = new QHBoxLayout(mapRow);
+        mapLayout->setContentsMargins(0, 0, 0, 0);
+        mapLayout->setSpacing(PORT_ROW_SPACING);
+
+        m_mapCombo = new QComboBox(mapRow);
+        mapLayout->addWidget(m_mapCombo, 1);
+
+        m_browseMapsBtn = new QPushButton(tr("Browse All Maps…"), mapRow);
+        mapLayout->addWidget(m_browseMapsBtn);
+        connect(m_browseMapsBtn, &QPushButton::clicked, this, &ServerPage::openMapBrowser);
+
+        form->addRow(tr("Map:"), mapRow);
 
         m_maxPlayersSpinner = new NumberSpinner(group);
         m_maxPlayersSpinner->setRange(MAX_PLAYERS_MIN, MAX_PLAYERS_MAX);
@@ -472,6 +485,7 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
             AppConfig::instance().setCzStartMap(text);
         else
             AppConfig::instance().setCs16StartMap(text);
+        emit mapSelected(text);
         emit settingChanged();
     });
 
@@ -562,10 +576,11 @@ void ServerPage::loadForGame(const AppConfig::Game game)
             ? AppConfig::instance().czStartMap()
             : AppConfig::instance().cs16StartMap();
 
-        const QStringList maps = ServerFiles::scanMaps(game);
+        m_allMaps = ServerFiles::scanMaps(game);
         m_mapCombo->blockSignals(true);
         m_mapCombo->clear();
-        m_mapCombo->addItems(maps);
+        m_mapCombo->addItems(m_allMaps);
+        m_browseMapsBtn->setEnabled(m_allMaps.isEmpty() == false);
         const int savedIdx = m_mapCombo->findText(savedMap, Qt::MatchFixedString);
         // Fall back to the first map if the saved one is no longer present
         m_mapCombo->setCurrentIndex(savedIdx >= 0 ? savedIdx : 0);
@@ -616,7 +631,9 @@ void ServerPage::loadForGame(const AppConfig::Game game)
     }
     else
     {
+        m_allMaps.clear();
         m_mapCombo->clear();
+        m_browseMapsBtn->setEnabled(false);
         m_loadedHostname.clear();
         m_loadedPassword.clear();
         m_loadedMotd.clear();
@@ -685,6 +702,19 @@ QString ServerPage::currentIp()   const { return m_ipEdit->text(); }
 int     ServerPage::currentPort() const { return m_portSpinner->value(); }
 QString ServerPage::currentMap()  const { return m_mapCombo->currentText(); }
 int     ServerPage::maxPlayers()  const { return m_maxPlayersSpinner->value(); }
+
+void ServerPage::openMapBrowser()
+{
+    MapBrowserDialog dlg(m_allMaps, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    // Selecting it saves the start map and notifies the Maps page.
+    const int idx = m_mapCombo->findText(dlg.selectedMap(), Qt::MatchFixedString);
+    if (idx >= 0)
+    {
+        m_mapCombo->setCurrentIndex(idx);
+    }
+}
 
 void ServerPage::setStartMap(const QString& map)
 {

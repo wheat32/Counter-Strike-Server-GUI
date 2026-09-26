@@ -326,6 +326,12 @@ QHeaderView::section
     font-weight: bold;
 }
 
+/* Map browser columns have a single section, so no divider after it. */
+#mapBrowserColumn QHeaderView::section
+{
+    border-right: none;
+}
+
 /* === Tool Tips === */
 QToolTip
 {

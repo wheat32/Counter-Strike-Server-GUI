@@ -3,34 +3,21 @@
 #include <QFrame>
 #include <QGroupBox>
 #include <QLabel>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
 
 #include "appConfig.h"
+#include "dialogs/mapBrowserDialog.h"
 #include "serverFiles.h"
+
+using MapTypes::MapType;
 
 namespace
 {
 constexpr int PAGE_MARGIN   = 20;
 constexpr int GROUP_SPACING = 16;
 constexpr int CHECK_SPACING = 6;
-
-enum class MapType { Defuse, Hostage, Assassination, Aim, FightYard, Other };
-
-MapType detectType(const QString& name)
-{
-    if (name.startsWith(QStringLiteral("de_"),  Qt::CaseInsensitive)) return MapType::Defuse;
-    if (name.startsWith(QStringLiteral("cs_"),  Qt::CaseInsensitive)) return MapType::Hostage;
-    if (name.startsWith(QStringLiteral("as_"),  Qt::CaseInsensitive)) return MapType::Assassination;
-    if (name.startsWith(QStringLiteral("aim_"), Qt::CaseInsensitive)) return MapType::Aim;
-    if (name.startsWith(QStringLiteral("fy_"),  Qt::CaseInsensitive)) return MapType::FightYard;
-    return MapType::Other;
-}
-
-bool isCZVariant(const QString& name)
-{
-    return name.endsWith(QStringLiteral("_cz"), Qt::CaseInsensitive);
-}
 } // namespace
 
 MapsPage::MapsPage(QWidget* parent) : QWidget(parent)
@@ -64,6 +51,10 @@ MapsPage::MapsPage(QWidget* parent) : QWidget(parent)
 
         m_mapCombo = new QComboBox(group);
         grp->addWidget(m_mapCombo);
+
+        m_browseBtn = new QPushButton(tr("Browse All Maps…"), group);
+        grp->addWidget(m_browseBtn, 0, Qt::AlignLeft);
+        connect(m_browseBtn, &QPushButton::clicked, this, &MapsPage::openMapBrowser);
 
         contentLayout->addWidget(group);
 
@@ -110,12 +101,12 @@ MapsPage::MapsPage(QWidget* parent) : QWidget(parent)
         typeLbl->setFont(bold);
         grp->addWidget(typeLbl);
 
-        m_showDefuse        = new QCheckBox(tr("Defuse (de_)"),         group);
-        m_showHostage       = new QCheckBox(tr("Hostage rescue (cs_)"), group);
-        m_showAssassination = new QCheckBox(tr("Assassination (as_)"),  group);
-        m_showAim           = new QCheckBox(tr("Aim training (aim_)"),  group);
-        m_showFightYard     = new QCheckBox(tr("Fight Yard (fy_)"),     group);
-        m_showOther         = new QCheckBox(tr("Other"),                group);
+        m_showDefuse        = new QCheckBox(MapTypes::typeLabel(MapType::Defuse),        group);
+        m_showHostage       = new QCheckBox(MapTypes::typeLabel(MapType::Hostage),       group);
+        m_showAssassination = new QCheckBox(MapTypes::typeLabel(MapType::Assassination), group);
+        m_showAim           = new QCheckBox(MapTypes::typeLabel(MapType::Aim),           group);
+        m_showFightYard     = new QCheckBox(MapTypes::typeLabel(MapType::FightYard),     group);
+        m_showOther         = new QCheckBox(MapTypes::typeLabel(MapType::Other),         group);
 
         m_showDefuse->setChecked(true);
         m_showHostage->setChecked(true);
@@ -155,7 +146,66 @@ MapsPage::MapsPage(QWidget* parent) : QWidget(parent)
 void MapsPage::loadForGame(const AppConfig::Game game)
 {
     m_allMaps = ServerFiles::scanMaps(game);
+    m_browseBtn->setEnabled(m_allMaps.isEmpty() == false);
     applyFilters();
+}
+
+QCheckBox* MapsPage::typeFilter(const MapType type) const
+{
+    switch (type)
+    {
+        case MapType::Defuse:
+            return m_showDefuse;
+        case MapType::Hostage:
+            return m_showHostage;
+        case MapType::Assassination:
+            return m_showAssassination;
+        case MapType::Aim:
+            return m_showAim;
+        case MapType::FightYard:
+            return m_showFightYard;
+        case MapType::Other:
+            break;
+    }
+    return m_showOther;
+}
+
+void MapsPage::showInFilters(const QString& map)
+{
+    // Each newly checked box re-runs applyFilters().
+    QCheckBox* versionFilter = MapTypes::isCZVariant(map) ? m_showCZ : m_showStandard;
+    versionFilter->setChecked(true);
+    typeFilter(MapTypes::detectType(map))->setChecked(true);
+}
+
+void MapsPage::openMapBrowser()
+{
+    MapBrowserDialog dlg(m_allMaps, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    const QString map = dlg.selectedMap();
+    if (map.isEmpty()) return;
+
+    // The dialog lists every map, so this one may be filtered out.
+    showInFilters(map);
+
+    // Selecting it saves the start map and notifies the Server page.
+    const int idx = m_mapCombo->findText(map, Qt::MatchFixedString);
+    if (idx >= 0)
+    {
+        m_mapCombo->setCurrentIndex(idx);
+    }
+}
+
+void MapsPage::setStartMap(const QString& map)
+{
+    showInFilters(map);
+
+    const int idx = m_mapCombo->findText(map, Qt::MatchFixedString);
+    if (idx < 0) return;
+    m_mapCombo->blockSignals(true);
+    m_mapCombo->setCurrentIndex(idx);
+    m_mapCombo->blockSignals(false);
 }
 
 void MapsPage::applyFilters()
@@ -167,33 +217,17 @@ void MapsPage::applyFilters()
 
     const bool wantStandard = m_showStandard->isChecked();
     const bool wantCZ       = m_showCZ->isChecked();
-    const bool wantDefuse   = m_showDefuse->isChecked();
-    const bool wantHostage  = m_showHostage->isChecked();
-    const bool wantAssassin = m_showAssassination->isChecked();
-    const bool wantAim      = m_showAim->isChecked();
-    const bool wantFY       = m_showFightYard->isChecked();
-    const bool wantOther    = m_showOther->isChecked();
 
     m_mapCombo->blockSignals(true);
     m_mapCombo->clear();
 
     for (const QString& map : std::as_const(m_allMaps))
     {
-        const bool czVariant = isCZVariant(map);
-        if (czVariant  && !wantCZ)       continue;
-        if (!czVariant && !wantStandard) continue;
+        const bool czVariant = MapTypes::isCZVariant(map);
+        if (czVariant && wantCZ == false) continue;
+        if (czVariant == false && wantStandard == false) continue;
 
-        bool typeOk = false;
-        switch (detectType(map))
-        {
-            case MapType::Defuse:        typeOk = wantDefuse;   break;
-            case MapType::Hostage:       typeOk = wantHostage;  break;
-            case MapType::Assassination: typeOk = wantAssassin; break;
-            case MapType::Aim:           typeOk = wantAim;      break;
-            case MapType::FightYard:     typeOk = wantFY;       break;
-            case MapType::Other:         typeOk = wantOther;    break;
-        }
-        if (!typeOk) continue;
+        if (typeFilter(MapTypes::detectType(map))->isChecked() == false) continue;
 
         m_mapCombo->addItem(map);
     }
