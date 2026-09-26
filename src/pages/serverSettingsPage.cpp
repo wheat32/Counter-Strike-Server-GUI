@@ -26,9 +26,14 @@ constexpr int CTRL_SPACING  = 12;
 constexpr int EYE_ICON_SIZE = 14;
 constexpr int HINT_SPACING  = 2;
 
+constexpr int WIDE_SPINNER_WIDTH = 110; // fits six digits
+
 constexpr int MAXSPEED_MIN   = 10;
 constexpr int MAXSPEED_MAX   = 99999;
-constexpr int MAXSPEED_WIDTH = 110;
+
+// The engine clamps every player's rate to at most 100000 bytes/s.
+constexpr int RATE_MAX  = 100000;
+constexpr int RATE_STEP = 1000;
 
 constexpr int TIMELIMIT_MAX  = 999;
 constexpr int ROUNDTIME_MIN  = 1;
@@ -36,6 +41,7 @@ constexpr int ROUNDTIME_MAX  = 60;
 constexpr int FREEZETIME_MAX = 60;
 constexpr int LIMITTEAMS_MAX = 30;
 constexpr int HOSTAGE_MAX    = 20;
+constexpr int UPLOADMAX_MAX  = 100; // MB
 
 QIcon renderSvgIcon(const QString& resource, const QColor& color, int size)
 {
@@ -275,7 +281,23 @@ ServerSettingsPage::ServerSettingsPage(QWidget* parent) : QWidget(parent)
         m_svMaxspeed = addSpinnerRow(grp, tr("Max player speed"),
                                      tr("Maximum movement speed (default 320)"));
         m_svMaxspeed->setRange(MAXSPEED_MIN, MAXSPEED_MAX);
-        m_svMaxspeed->setFixedWidth(MAXSPEED_WIDTH);
+        m_svMaxspeed->setFixedWidth(WIDE_SPINNER_WIDTH);
+
+        m_svUploadmax = addSpinnerRow(grp, tr("Max upload size (MB)"),
+                                      tr("Largest file a client can upload, such as a spray (sv_uploadmax)"));
+        m_svUploadmax->setRange(0, UPLOADMAX_MAX);
+
+        m_svMinrate = addSpinnerRow(grp, tr("Min player rate (bytes/s)"),
+                                    tr("Speeds up in-game map downloads (sv_minrate, 0 = none)"));
+        m_svMinrate->setRange(0, RATE_MAX);
+        m_svMinrate->setSingleStep(RATE_STEP);
+        m_svMinrate->setFixedWidth(WIDE_SPINNER_WIDTH);
+
+        m_svMaxrate = addSpinnerRow(grp, tr("Max player rate (bytes/s)"),
+                                    tr("Caps each player's rate (sv_maxrate, 0 = no limit)"));
+        m_svMaxrate->setRange(0, RATE_MAX);
+        m_svMaxrate->setSingleStep(RATE_STEP);
+        m_svMaxrate->setFixedWidth(WIDE_SPINNER_WIDTH);
 
         m_svCheats = addToggleRow(grp, tr("Allow cheats"),
                                   tr("Enable cheat commands (sv_cheats)"));
@@ -290,6 +312,12 @@ ServerSettingsPage::ServerSettingsPage(QWidget* parent) : QWidget(parent)
 
         connect(m_svMaxspeed, &NumberSpinner::valueChanged, this,
                 [this](int v) { save(QStringLiteral("sv_maxspeed"), v); });
+        connect(m_svUploadmax, &NumberSpinner::valueChanged, this,
+                [this](int v) { save(QStringLiteral("sv_uploadmax"), v); });
+        connect(m_svMinrate, &NumberSpinner::valueChanged, this,
+                [this](int v) { save(QStringLiteral("sv_minrate"), v); });
+        connect(m_svMaxrate, &NumberSpinner::valueChanged, this,
+                [this](int v) { save(QStringLiteral("sv_maxrate"), v); });
         connect(m_svCheats, &ToggleSwitch::toggled, this,
                 [this](bool on) { save(QStringLiteral("sv_cheats"), on ? 1 : 0); });
         connect(m_svAim, &ToggleSwitch::toggled, this,
@@ -330,6 +358,9 @@ void ServerSettingsPage::loadForGame(const AppConfig::Game game)
     block(m_mpTkpunish,       on);
     block(m_mpHostagepenalty, on);
     block(m_svMaxspeed,       on);
+    block(m_svUploadmax,      on);
+    block(m_svMinrate,        on);
+    block(m_svMaxrate,        on);
     block(m_svCheats,         on);
     block(m_svAim,            on);
     block(m_svPausable,       on);
@@ -363,6 +394,9 @@ void ServerSettingsPage::loadForGame(const AppConfig::Game game)
     m_mpHostagepenalty->setValue(cfg.mpHostagepenalty);
 
     m_svMaxspeed->setValue(cfg.svMaxspeed);
+    m_svUploadmax->setValue(cfg.svUploadmax);
+    m_svMinrate->setValue(cfg.svMinrate);
+    m_svMaxrate->setValue(cfg.svMaxrate);
     m_svCheats->setOn(cfg.svCheats != 0, false);
     m_svAim->setOn(cfg.svAim       != 0, false);
     m_svPausable->setOn(cfg.svPausable != 0, false);
@@ -383,6 +417,9 @@ void ServerSettingsPage::loadForGame(const AppConfig::Game game)
     block(m_mpTkpunish,       !on);
     block(m_mpHostagepenalty, !on);
     block(m_svMaxspeed,       !on);
+    block(m_svUploadmax,      !on);
+    block(m_svMinrate,        !on);
+    block(m_svMaxrate,        !on);
     block(m_svCheats,         !on);
     block(m_svAim,            !on);
     block(m_svPausable,       !on);

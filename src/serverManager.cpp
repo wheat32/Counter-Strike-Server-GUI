@@ -4,6 +4,7 @@
 
 #include "cli/flatpakUtils.h"
 #include "debug.h"
+#include "serverOutput.h"
 
 ServerManager::ServerManager(QObject* parent) : QObject(parent) {}
 
@@ -43,14 +44,20 @@ bool ServerManager::start(const QString& serverPath,
     }
     args << QStringLiteral("+maxplayers") << QString::number(maxPlayers);
     args << QStringLiteral("-console");
+    // hlds_run otherwise restarts hlds_linux forever, even after "quit" or a
+    // fatal startup error, so the server would never stop on its own. With
+    // -norestart it exec()s hlds_linux, so this process is the server itself.
+    args << QStringLiteral("-norestart");
 
     const QString executable = serverPath + QStringLiteral("/hlds_run");
 
     DBG_CLI(QStringLiteral("ServerManager: launching: ") + executable
             + QStringLiteral(" ") + args.join(u' '));
 
-    m_process = new QProcess(this);
-    m_process->setWorkingDirectory(serverPath);
+    m_process       = new QProcess(this);
+    m_startingUp    = (map.isEmpty() == false);
+    m_stopRequested = false;
+    m_failed        = false;
     // Merge stderr into stdout so all output arrives on one channel.
     m_process->setProcessChannelMode(QProcess::MergedChannels);
 
@@ -78,16 +85,14 @@ bool ServerManager::start(const QString& serverPath,
                             + QStringLiteral("\nVerify the server path in App Settings."));
             m_process->deleteLater();
             m_process = nullptr;
+            emit failed(tr("hlds_run could not be started: %1").arg(msg));
             emit stopped();
         }
     });
 
-    // buildHostCommand wraps the call with flatpak-spawn --host when inside a
-    // Flatpak sandbox and forwards the working directory via --directory=.
-    auto [prog, fullArgs] = buildHostCommand(executable, args, serverPath);
-    m_process->start(prog, fullArgs);
+    startHostCommand(m_process, executable, args, serverPath);
 
-    return true; // result delivered asynchronously via stopped() on failure
+    return true; // failures are reported asynchronously via failed() and stopped()
 }
 
 void ServerManager::stop()
@@ -96,6 +101,7 @@ void ServerManager::stop()
 
     DBG_CLI(QStringLiteral("ServerManager: stopping server..."));
     emit outputLine(QStringLiteral("=== Stopping server ==="));
+    m_stopRequested = true;
 
     sendCommand(QStringLiteral("quit"));
     m_process->closeWriteChannel();
@@ -126,8 +132,39 @@ void ServerManager::onReadyRead()
         if (trimmed.isEmpty() == false)
         {
             emit outputLine(trimmed);
+            checkForFailure(trimmed);
         }
     }
+}
+
+void ServerManager::checkForFailure(const QString& line)
+{
+    if (m_startingUp && ServerOutput::isServerReadyLine(line))
+    {
+        DBG_CLI(QStringLiteral("ServerManager: server is up"));
+        m_startingUp = false;
+        return;
+    }
+
+    const QString reason = ServerOutput::fatalErrorFromLine(line, m_startingUp);
+    if (reason.isEmpty() == false)
+    {
+        fail(reason);
+    }
+}
+
+void ServerManager::fail(const QString& reason)
+{
+    if (m_failed) return;
+    m_failed = true;
+
+    DBG_CLI(QStringLiteral("ServerManager: server failed: ") + reason);
+    // Stop before emitting: a receiver of failed() may open a dialog.
+    if (isRunning() && m_stopRequested == false)
+    {
+        stop();
+    }
+    emit failed(reason);
 }
 
 void ServerManager::onProcessFinished(const int exitCode, QProcess::ExitStatus)
@@ -139,6 +176,15 @@ void ServerManager::onProcessFinished(const int exitCode, QProcess::ExitStatus)
             + QString::number(exitCode) + QStringLiteral(")"));
     emit outputLine(QStringLiteral("=== Server stopped (exit ") + QString::number(exitCode)
                     + QStringLiteral(") ==="));
+
+    // Exited during startup without a recognized error line, e.g. hlds_run
+    // rejecting its arguments.
+    if (m_startingUp && m_stopRequested == false)
+    {
+        fail(tr("The server exited during startup (exit code %1). "
+                "See Server Controls for the console output.").arg(exitCode));
+    }
+    m_startingUp = false;
 
     m_process->deleteLater();
     m_process = nullptr;

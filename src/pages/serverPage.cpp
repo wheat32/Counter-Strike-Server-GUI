@@ -313,19 +313,15 @@ ServerPage::ServerPage(QWidget* parent) : QWidget(parent)
             m_firewallHelpLink->setVisible(false);
         });
 
-        // Manual check button — use checkNow() to skip the debounce delay
-        connect(m_firewallCheckBtn, &QPushButton::clicked, this, [this]()
-        {
-            m_firewallLabel->setVisible(false);
-            m_firewallHelpLink->setVisible(false);
-            m_firewallChecker->checkNow(m_portSpinner->value());
-        });
+        connect(m_firewallCheckBtn, &QPushButton::clicked, this, &ServerPage::recheckFirewall);
 
-        // Fix-link opens the help dialog
+        // Fix-link opens the help dialog; re-check once it closes so the status
+        // reflects any commands the user just ran.
         connect(m_firewallHelpLink, &QLabel::linkActivated, this, [this](const QString&)
         {
             FirewallHelpDialog dlg(m_portSpinner->value(), m_lastFirewallType, this);
             dlg.exec();
+            recheckFirewall();
         });
     }
 
@@ -722,12 +718,19 @@ void ServerPage::changeEvent(QEvent* event)
     }
 }
 
+void ServerPage::recheckFirewall()
+{
+    m_firewallLabel->setVisible(false);
+    m_firewallHelpLink->setVisible(false);
+    // checkNow() skips the debounce delay.
+    m_firewallChecker->checkNow(m_portSpinner->value());
+}
+
 void ServerPage::detectLocalIp()
 {
     m_detectIpBtn->setEnabled(false);
     m_detectIpBtn->setText(tr("Detecting…"));
 
-    auto [prog, args] = buildHostCommand(QStringLiteral("ifconfig"), {});
     QProcess* proc = new QProcess(this);
 
     // Restore the button regardless of success or failure.
@@ -783,7 +786,7 @@ void ServerPage::detectLocalIp()
         restoreBtn();
     });
 
-    proc->start(prog, args);
+    startHostCommand(proc, QStringLiteral("ifconfig"));
 }
 
 void ServerPage::writeBotsTeamToConfig()

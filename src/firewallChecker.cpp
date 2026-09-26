@@ -40,9 +40,8 @@ void FirewallChecker::startCheck()
 
 QProcess* FirewallChecker::launch(const QString& prog, const QStringList& args)
 {
-    auto [program, fullArgs] = buildHostCommand(prog, args);
     QProcess* proc = new QProcess(this);
-    proc->start(program, fullArgs);
+    startHostCommand(proc, prog, args);
     return proc;
 }
 

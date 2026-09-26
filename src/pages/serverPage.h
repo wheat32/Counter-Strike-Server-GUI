@@ -81,5 +81,6 @@ private:
     void refreshPasswordToggleIcon();
     void writeBotsTeamToConfig();
     void detectLocalIp();
+    void recheckFirewall();
     void onFirewallResult(int port, FirewallChecker::Status status, FirewallChecker::FirewallType type);
 };

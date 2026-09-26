@@ -30,6 +30,7 @@ set(SOURCES
         serverUtils.h
         serverFiles.h
         serverManager.h
+        serverOutput.h
         serverManager.cpp
         serverSetupDialog.h
         serverSetupDialog.cpp
@@ -94,6 +95,12 @@ target_link_libraries(cs_server_manager
         Qt6::Svg
         Qt6::SvgWidgets
 )
+
+# Unit tests (tests/) are built with Debug builds and run with ctest.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 install(TARGETS cs_server_manager
         RUNTIME DESTINATION bin

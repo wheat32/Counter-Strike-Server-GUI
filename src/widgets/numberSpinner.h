@@ -58,8 +58,8 @@ public:
         btnLayout->addWidget(m_downBtn);
         outer->addWidget(btnFrame);
 
-        connect(m_upBtn,   &QPushButton::clicked, this, [this] { step(+1); });
-        connect(m_downBtn, &QPushButton::clicked, this, [this] { step(-1); });
+        connect(m_upBtn,   &QPushButton::clicked, this, [this] { step(m_step); });
+        connect(m_downBtn, &QPushButton::clicked, this, [this] { step(-m_step); });
 
         connect(m_display, &QLineEdit::editingFinished, this, [this]() {
             bool ok = false;
@@ -98,6 +98,12 @@ public:
 
         refreshDisplay();
         refreshButtons();
+    }
+
+    // Amount the up/down arrows change the value by (default 1).
+    void setSingleStep(const int step)
+    {
+        m_step = step;
     }
 
     void setValue(const int value)
@@ -155,11 +161,11 @@ private:
         return btn;
     }
 
+    // Stops at the range ends, so a step larger than 1 still reaches min/max.
     void step(const int delta)
     {
-        const int next = m_value + delta;
-        if (next < m_min || next > m_max)
-            return;
+        const int next = qBound(m_min, m_value + delta, m_max);
+        if (next == m_value) return;
         m_value = next;
         refreshDisplay();
         refreshButtons();
@@ -186,4 +192,5 @@ private:
     int m_min   =  0;
     int m_max   = 99;
     int m_value =  0;
+    int m_step  =  1;
 };

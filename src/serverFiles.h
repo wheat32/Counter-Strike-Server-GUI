@@ -69,7 +69,10 @@ inline QString extractConfigValue(const QString& line, const QString& key)
 // ── Default content ──────────────────────────────────────────────────────────
 
 // Returns the full text written to a freshly-created server.cfg.
-// Values match the ServerConfig struct defaults so the UI and the file agree.
+// Values match the ServerConfig struct defaults so the UI and the file agree,
+// except sv_minrate: new files raise it to the engine maximum (100000 bytes/s)
+// for faster in-game downloads, while ServerConfig keeps the engine default (0)
+// so a file without the key shows what the server actually uses.
 inline QString defaultServerConfigContent()
 {
     return QStringLiteral(
@@ -79,6 +82,9 @@ inline QString defaultServerConfigContent()
         "sv_password \"\"\n"
         "sv_lan 0\n"
         "sv_region 0\n"
+        "sv_uploadmax 1\n"
+        "sv_minrate 100000\n"
+        "sv_maxrate 0\n"
         "\n"
         "mp_timelimit 0\n"
         "mp_roundtime 5\n"
@@ -229,8 +235,11 @@ struct ServerConfig
     // Server identity
     QString hostname;
     QString password;
-    int svLan    = 0;   // sv_lan:    0 = public, 1 = LAN only
-    int svRegion = 0;   // sv_region: -1 (world) .. 7 (Africa)
+    int svLan       = 0;   // sv_lan:       0 = public, 1 = LAN only
+    int svRegion    = 0;   // sv_region:    -1 (world) .. 7 (Africa)
+    int svUploadmax = 1;   // sv_uploadmax: largest file (MB) a client can upload
+    int svMinrate   = 0;   // sv_minrate:   bytes/s floor on each player's rate (0 = none)
+    int svMaxrate   = 0;   // sv_maxrate:   bytes/s cap on each player's rate (0 = none)
 
     // Gameplay — timing
     int mpTimelimit  = 0;   // mp_timelimit  (min; 0 = unlimited)
@@ -278,11 +287,11 @@ struct ServerConfig
     int botAllowShield         = 0;
 };
 
-// Reads hostname and sv_password from server.cfg.
-inline ServerConfig readServerConfig(const AppConfig::Game game)
+// Reads the settings the app manages from the server.cfg at path. Keys that are
+// missing keep their ServerConfig defaults.
+inline ServerConfig readServerConfigFile(const QString& path)
 {
     ServerConfig cfg;
-    const QString path = gameDirectory(game) + QStringLiteral("/server.cfg");
     QFile f(path);
     if (f.open(QIODevice::ReadOnly | QIODevice::Text) == false)
     {
@@ -312,6 +321,9 @@ inline ServerConfig readServerConfig(const AppConfig::Game game)
         if (parse(line, QStringLiteral("sv_password"),  cfg.password))     continue;
         if (parse(line, QStringLiteral("sv_lan"),       cfg.svLan))        continue;
         if (parse(line, QStringLiteral("sv_region"),    cfg.svRegion))     continue;
+        if (parse(line, QStringLiteral("sv_uploadmax"), cfg.svUploadmax))  continue;
+        if (parse(line, QStringLiteral("sv_minrate"),   cfg.svMinrate))    continue;
+        if (parse(line, QStringLiteral("sv_maxrate"),   cfg.svMaxrate))    continue;
 
         // Timing
         if (parse(line, QStringLiteral("mp_timelimit"),  cfg.mpTimelimit))  continue;
@@ -363,6 +375,12 @@ inline ServerConfig readServerConfig(const AppConfig::Game game)
     DBG_APP(QStringLiteral("ServerFiles: read server.cfg — hostname=\"") + cfg.hostname
             + QStringLiteral("\" password=") + (cfg.password.isEmpty() ? QStringLiteral("(none)") : QStringLiteral("(set)")));
     return cfg;
+}
+
+// Reads the settings the app manages from the given game's server.cfg.
+inline ServerConfig readServerConfig(const AppConfig::Game game)
+{
+    return readServerConfigFile(gameDirectory(game) + QStringLiteral("/server.cfg"));
 }
 
 // Updates (or appends) a single key in server.cfg, creating the file with
@@ -433,36 +451,100 @@ inline bool writeServerConfigValue(const AppConfig::Game game,
 
 // ── Map scanner ───────────────────────────────────────────────────────────────
 
-// Returns a sorted, deduplicated list of map names from the game's maps/
-// directory.  A name is included when either a .bsp or a .nav file with that
-// base name exists — so maps bundled only as .nav (bot navmesh, .bsp inside a
-// pak) and maps with both files each appear exactly once.
-inline QStringList scanMaps(const AppConfig::Game game)
-{
-    const QString mapsPath = gameDirectory(game) + QStringLiteral("/maps");
-    QDir dir(mapsPath);
+// The engine looks maps up as "maps/%.32s.bsp", so longer names can never load.
+inline constexpr int MAX_MAP_NAME_LENGTH = 32;
 
-    if (dir.exists() == false)
+// Returns the fallback_dir value from <gameDir>/liblist.gam (e.g. "cstrike" for
+// czero), or an empty string if there is none. Mirrors the engine's parser: the
+// line must start with the key and the value is the first quoted string.
+inline QString readFallbackDir(const QString& gameDir)
+{
+    QFile f(gameDir + QStringLiteral("/liblist.gam"));
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text) == false)
     {
-        DBG_APP(QStringLiteral("ServerFiles: maps directory not found: ") + mapsPath);
-        return {};
+        return QString();
     }
 
-    dir.setNameFilters({QStringLiteral("*.bsp"), QStringLiteral("*.nav")});
-    dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
-
-    QSet<QString> nameSet;
-    for (const QFileInfo& fi : dir.entryInfoList())
+    const QString key = QStringLiteral("fallback_dir");
+    QTextStream in(&f);
+    while (in.atEnd() == false)
     {
-        nameSet.insert(fi.completeBaseName());
+        const QString line = in.readLine();
+        if (line.startsWith(key, Qt::CaseInsensitive) == false) continue;
+
+        const int open  = line.indexOf(u'"');
+        const int close = (open < 0) ? open : line.indexOf(u'"', open + 1);
+        if (close > open + 1)
+        {
+            return line.mid(open + 1, close - open - 1);
+        }
+    }
+    return QString();
+}
+
+// Returns the directories whose maps/ folders the engine searches when a map is
+// requested, in the engine's order: the game itself, <game>_downloads, then the
+// liblist.gam fallback_dir. The engine also searches valve/ last, but that only
+// holds Half-Life maps, so it is intentionally left out.
+inline QStringList mapSearchDirectories(const QString& gameDir)
+{
+    const QFileInfo gameInfo(QDir::cleanPath(gameDir));
+    const QString baseDir  = gameInfo.absolutePath();
+    const QString gameName = gameInfo.fileName();
+
+    QStringList dirs = {
+        gameInfo.absoluteFilePath(),
+        baseDir + u'/' + gameName + QStringLiteral("_downloads"),
+    };
+
+    const QString fallback = readFallbackDir(gameInfo.absoluteFilePath());
+    const bool usableFallback = fallback.isEmpty() == false
+        && fallback.compare(gameName, Qt::CaseInsensitive) != 0
+        && fallback.compare(QStringLiteral("valve"), Qt::CaseInsensitive) != 0;
+    if (usableFallback)
+    {
+        dirs.append(baseDir + u'/' + fallback);
+    }
+    return dirs;
+}
+
+// Returns a sorted, deduplicated list of the maps the server can load for the
+// game content directory gameDir (e.g. ".../czero"). A map is loadable when
+// maps/<name>.bsp exists in one of mapSearchDirectories(). Other files in maps/
+// don't count: CZ ships .nav bot meshes for maps (e.g. awp_city) whose .bsp is
+// not installed, and "map awp_city" fails with "not found on server".
+inline QStringList scanMapsInGameDirectory(const QString& gameDir)
+{
+    QSet<QString> nameSet;
+
+    for (const QString& searchDir : mapSearchDirectories(gameDir))
+    {
+        QDir dir(searchDir + QStringLiteral("/maps"));
+        if (dir.exists() == false) continue;
+
+        dir.setNameFilters({QStringLiteral("*.bsp")});
+        dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
+
+        for (const QFileInfo& fi : dir.entryInfoList())
+        {
+            const QString name = fi.completeBaseName();
+            if (name.isEmpty() || name.length() > MAX_MAP_NAME_LENGTH) continue;
+            nameSet.insert(name);
+        }
     }
 
     QStringList names(nameSet.cbegin(), nameSet.cend());
     names.sort(Qt::CaseInsensitive);
 
     DBG_APP(QStringLiteral("ServerFiles: found ") + QString::number(names.size())
-            + QStringLiteral(" unique maps in ") + mapsPath);
+            + QStringLiteral(" loadable maps for ") + gameDir);
     return names;
+}
+
+// Returns the maps the server can load for the given game.
+inline QStringList scanMaps(const AppConfig::Game game)
+{
+    return scanMapsInGameDirectory(gameDirectory(game));
 }
 
 // ── BotProfile.db ────────────────────────────────────────────────────────────

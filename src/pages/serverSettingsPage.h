@@ -49,8 +49,11 @@ private:
     NumberSpinner* m_mpHostagepenalty = nullptr;
 
     // Advanced
-    NumberSpinner* m_svMaxspeed = nullptr;
-    ToggleSwitch*  m_svCheats   = nullptr;
-    ToggleSwitch*  m_svAim      = nullptr;
-    ToggleSwitch*  m_svPausable = nullptr;
+    NumberSpinner* m_svMaxspeed  = nullptr;
+    NumberSpinner* m_svUploadmax = nullptr;
+    NumberSpinner* m_svMinrate   = nullptr;
+    NumberSpinner* m_svMaxrate   = nullptr;
+    ToggleSwitch*  m_svCheats    = nullptr;
+    ToggleSwitch*  m_svAim       = nullptr;
+    ToggleSwitch*  m_svPausable  = nullptr;
 };

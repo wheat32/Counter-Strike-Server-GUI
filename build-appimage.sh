@@ -135,16 +135,7 @@ for _wayland_dir in \
     if [[ -f "${_wayland_dir}/libqwayland.so" ]]; then
         cp "${_wayland_dir}/libqwayland.so" "${APPDIR}/usr/plugins/platforms/"
         info "Bundled Wayland platform plugin (${_wayland_dir})"
-
-        while IFS= read -r _dep; do
-            _dep_name=$(basename "${_dep}")
-            if [[ -f "${_dep}" && ! -f "${APPDIR}/usr/lib/${_dep_name}" ]]; then
-                cp "${_dep}" "${APPDIR}/usr/lib/"
-                info "  Bundled Wayland dep: ${_dep_name}"
-            fi
-        done < <(ldd "${_wayland_dir}/libqwayland.so" 2>/dev/null \
-                 | awk '/=>/ {print $3}' \
-                 | grep -v "not found")
+        _deploy_deps=(--deploy-deps-only "${APPDIR}/usr/plugins/platforms/libqwayland.so")
 
         _qt_plugins_dir="$(dirname "${_wayland_dir}")"
         for _sub in wayland-shell-integration wayland-graphics-integration-client \
@@ -154,8 +145,17 @@ for _wayland_dir in \
                 cp "${_qt_plugins_dir}/${_sub}"/*.so \
                    "${APPDIR}/usr/plugins/${_sub}/" 2>/dev/null || true
                 info "  Bundled Qt Wayland sub-plugin dir: ${_sub}"
+                _deploy_deps+=(--deploy-deps-only "${APPDIR}/usr/plugins/${_sub}")
             fi
         done
+
+        # Let linuxdeploy bundle the plugins' dependencies. Copying everything
+        # ldd lists would also bundle glibc (libc.so.6, libm.so.6) and libGL,
+        # which must come from the host: AppRun puts usr/lib on
+        # LD_LIBRARY_PATH, and a mismatched libc breaks host tools and the app.
+        info "Bundling Wayland plugin dependencies..."
+        NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
+            --appdir "${APPDIR}" "${_deploy_deps[@]}"
         break
     fi
 done

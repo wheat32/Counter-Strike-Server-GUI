@@ -1,17 +1,20 @@
 /* CS Server Manager — Light Theme */
 
 /* === Base === */
-QWidget {
+QWidget
+{
     font-size: 13px;
 }
 
 QMainWindow,
-QDialog {
+QDialog
+{
     background-color: palette(window);
 }
 
 /* === Buttons === */
-QPushButton {
+QPushButton
+{
     background-color: palette(button);
     color: palette(button-text);
     border: 1px solid palette(mid);
@@ -19,41 +22,48 @@ QPushButton {
     padding: 6px 14px;
 }
 
-QPushButton:hover {
+QPushButton:hover
+{
     background-color: #f5f2e8;
     border-color: #8a7000;
 }
 
-QPushButton:pressed {
+QPushButton:pressed
+{
     background-color: #8a7000;
     color: #ffffff;
     border-color: #8a7000;
 }
 
-QPushButton:disabled {
+QPushButton:disabled
+{
     color: palette(placeholder-text);
     border-color: palette(dark);
 }
 
-QPushButton[accent="true"] {
+QPushButton[accent="true"]
+{
     background-color: #8a7000;
     color: #ffffff;
     border: none;
     font-weight: bold;
 }
 
-QPushButton[accent="true"]:hover {
+QPushButton[accent="true"]:hover
+{
     background-color: #c8a800;
 }
 
-QPushButton[accent="true"]:pressed {
+QPushButton[accent="true"]:pressed
+{
     background-color: #6c5800;
 }
 
 /* === Text Inputs === */
 QLineEdit,
 QTextEdit,
-QPlainTextEdit {
+QPlainTextEdit
+{
     background-color: palette(base);
     color: palette(text);
     border: 1px solid palette(mid);
@@ -66,47 +76,58 @@ QPlainTextEdit {
 
 QLineEdit:focus,
 QTextEdit:focus,
-QPlainTextEdit:focus {
+QPlainTextEdit:focus
+{
     border-color: #8a7000;
 }
 
 QLineEdit:disabled,
 QTextEdit:disabled,
-QPlainTextEdit:disabled {
+QPlainTextEdit:disabled
+{
     color: palette(placeholder-text);
     background-color: #f5f8fc;
 }
 
 /* === Combo Boxes === */
-QComboBox {
+QComboBox
+{
     background-color: palette(button);
     color: palette(button-text);
     border: 1px solid palette(mid);
     border-radius: 4px;
     padding: 4px 8px;
     min-height: 24px;
+    /* Always use a list popup. Fusion (the fallback style in the AppImage)
+       otherwise shows a menu popup that ignores item icons and hover styling. */
+    combobox-popup: 0;
 }
 
-QComboBox:hover {
+QComboBox:hover
+{
     border-color: #8a7000;
 }
 
-QComboBox:focus {
+QComboBox:focus
+{
     border-color: #8a7000;
 }
 
-QComboBox::drop-down {
+QComboBox::drop-down
+{
     border: none;
     width: 22px;
 }
 
-QComboBox::down-arrow {
+QComboBox::down-arrow
+{
     image: url(:/assets/chevron-down-light.svg);
     width: 12px;
     height: 12px;
 }
 
-QComboBox QAbstractItemView {
+QComboBox QAbstractItemView
+{
     background-color: palette(base);
     color: palette(text);
     border: 1px solid palette(mid);
@@ -115,18 +136,21 @@ QComboBox QAbstractItemView {
     outline: 0;
 }
 
-QComboBox QAbstractItemView::item {
+QComboBox QAbstractItemView::item
+{
     min-height: 28px;
     padding: 1px 4px;
 }
 
 /* === Check Boxes === */
-QCheckBox {
+QCheckBox
+{
     spacing: 8px;
     color: palette(window-text);
 }
 
-QCheckBox::indicator {
+QCheckBox::indicator
+{
     width: 16px;
     height: 16px;
     border: 1px solid palette(mid);
@@ -134,18 +158,21 @@ QCheckBox::indicator {
     background: palette(base);
 }
 
-QCheckBox::indicator:hover {
+QCheckBox::indicator:hover
+{
     border-color: #8a7000;
 }
 
-QCheckBox::indicator:checked {
+QCheckBox::indicator:checked
+{
     background-color: transparent;
     border-color: #c8a800;
     image: url(:/assets/check.svg);
 }
 
 /* === Group Boxes === */
-QGroupBox {
+QGroupBox
+{
     border: 1px solid palette(mid);
     border-radius: 6px;
     margin-top: 12px;
@@ -153,7 +180,8 @@ QGroupBox {
     color: palette(window-text);
 }
 
-QGroupBox::title {
+QGroupBox::title
+{
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 6px;
@@ -162,13 +190,15 @@ QGroupBox::title {
 }
 
 /* === Tab Widgets === */
-QTabWidget::pane {
+QTabWidget::pane
+{
     border: 1px solid palette(mid);
     border-radius: 4px;
     top: -1px;
 }
 
-QTabBar::tab {
+QTabBar::tab
+{
     background: palette(button);
     color: palette(button-text);
     border: 1px solid palette(mid);
@@ -179,73 +209,86 @@ QTabBar::tab {
     margin-right: 2px;
 }
 
-QTabBar::tab:selected {
+QTabBar::tab:selected
+{
     background: palette(base);
     color: #8a7000;
 }
 
-QTabBar::tab:hover:!selected {
+QTabBar::tab:hover:!selected
+{
     background: #f5f2e8;
     border-color: #8a7000;
 }
 
 /* === Scrollbars === */
-QScrollBar:vertical {
+QScrollBar:vertical
+{
     background: transparent;
     width: 8px;
     margin: 0;
 }
 
-QScrollBar::handle:vertical {
+QScrollBar::handle:vertical
+{
     background: palette(mid);
     border-radius: 4px;
     min-height: 24px;
 }
 
-QScrollBar::handle:vertical:hover {
+QScrollBar::handle:vertical:hover
+{
     background: #8a7000;
 }
 
 QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
+QScrollBar::sub-line:vertical
+{
     height: 0;
 }
 
 QScrollBar::add-page:vertical,
-QScrollBar::sub-page:vertical {
+QScrollBar::sub-page:vertical
+{
     background: transparent;
 }
 
-QScrollBar:horizontal {
+QScrollBar:horizontal
+{
     background: transparent;
     height: 8px;
     margin: 0;
 }
 
-QScrollBar::handle:horizontal {
+QScrollBar::handle:horizontal
+{
     background: palette(mid);
     border-radius: 4px;
     min-width: 24px;
 }
 
-QScrollBar::handle:horizontal:hover {
+QScrollBar::handle:horizontal:hover
+{
     background: #8a7000;
 }
 
 QScrollBar::add-line:horizontal,
-QScrollBar::sub-line:horizontal {
+QScrollBar::sub-line:horizontal
+{
     width: 0;
 }
 
 QScrollBar::add-page:horizontal,
-QScrollBar::sub-page:horizontal {
+QScrollBar::sub-page:horizontal
+{
     background: transparent;
 }
 
 /* === List / Table Widgets === */
 QListWidget,
 QTreeWidget,
-QTableWidget {
+QTableWidget
+{
     background-color: palette(base);
     color: palette(text);
     border: 1px solid palette(mid);
@@ -253,24 +296,28 @@ QTableWidget {
     outline: 0;
 }
 
-QListWidget::item {
+QListWidget::item
+{
     padding: 2px 4px;
 }
 
 QListWidget::item:hover,
 QTreeWidget::item:hover,
-QTableWidget::item:hover {
+QTableWidget::item:hover
+{
     background-color: #f5f2e8;
 }
 
 QListWidget::item:selected,
 QTreeWidget::item:selected,
-QTableWidget::item:selected {
+QTableWidget::item:selected
+{
     background-color: palette(highlight);
     color: palette(highlighted-text);
 }
 
-QHeaderView::section {
+QHeaderView::section
+{
     background-color: palette(button);
     color: palette(button-text);
     border: none;
@@ -281,7 +328,8 @@ QHeaderView::section {
 }
 
 /* === Tool Tips === */
-QToolTip {
+QToolTip
+{
     background-color: palette(tool-tip-base);
     color: palette(tool-tip-text);
     border: 1px solid palette(mid);
@@ -291,12 +339,14 @@ QToolTip {
 
 /* === Frames === */
 QFrame[frameShape="4"],
-QFrame[frameShape="5"] {
+QFrame[frameShape="5"]
+{
     color: palette(mid);
 }
 
 /* === Status Bar === */
-QStatusBar {
+QStatusBar
+{
     background: palette(window);
     color: palette(window-text);
     border-top: 1px solid palette(mid);
@@ -304,7 +354,8 @@ QStatusBar {
 
 /* === Spinbox === */
 QSpinBox,
-QDoubleSpinBox {
+QDoubleSpinBox
+{
     background-color: palette(base);
     color: palette(text);
     border: 1px solid palette(mid);
@@ -313,12 +364,14 @@ QDoubleSpinBox {
 }
 
 QSpinBox:focus,
-QDoubleSpinBox:focus {
+QDoubleSpinBox:focus
+{
     border-color: #8a7000;
 }
 
 /* === Progress Bar === */
-QProgressBar {
+QProgressBar
+{
     background-color: palette(base);
     border: 1px solid palette(mid);
     border-radius: 4px;
@@ -326,19 +379,22 @@ QProgressBar {
     color: palette(text);
 }
 
-QProgressBar::chunk {
+QProgressBar::chunk
+{
     background-color: #8a7000;
     border-radius: 3px;
 }
 
 /* === Sliders === */
-QSlider::groove:horizontal {
+QSlider::groove:horizontal
+{
     height: 4px;
     background: palette(mid);
     border-radius: 2px;
 }
 
-QSlider::handle:horizontal {
+QSlider::handle:horizontal
+{
     background: #8a7000;
     border: none;
     width: 14px;
@@ -347,20 +403,23 @@ QSlider::handle:horizontal {
     border-radius: 7px;
 }
 
-QSlider::sub-page:horizontal {
+QSlider::sub-page:horizontal
+{
     background: #8a7000;
     border-radius: 2px;
 }
 
 /* === Toast notification === */
-#toastNotification {
+#toastNotification
+{
     background-color: #ffffff;
     border: 1px solid #8a7000;
     border-radius: 8px;
     color: #1a1d27;
 }
 
-QPushButton#toastCloseBtn {
+QPushButton#toastCloseBtn
+{
     color: #8a7000;
     background: transparent;
     border: 1px solid #8a7000;
@@ -368,60 +427,70 @@ QPushButton#toastCloseBtn {
     padding: 0px;
 }
 
-QPushButton#toastCloseBtn:hover {
+QPushButton#toastCloseBtn:hover
+{
     background: rgba(138, 112, 0, 0.12);
 }
 
 /* === Number Spinner === */
-#numberSpinner {
+#numberSpinner
+{
     border: 1px solid palette(mid);
     border-radius: 4px;
     background: palette(base);
 }
 
-#numberSpinnerDisplay {
+#numberSpinnerDisplay
+{
     border: none;
     background: transparent;
     color: palette(text);
 }
 
-#numberSpinnerButtons {
+#numberSpinnerButtons
+{
     background: transparent;
     border-left: 1px solid palette(mid);
 }
 
 #numberSpinnerBtnUp,
-#numberSpinnerBtnDown {
+#numberSpinnerBtnDown
+{
     background: transparent;
     border: none;
 }
 
 #numberSpinnerBtnUp:hover,
-#numberSpinnerBtnDown:hover {
+#numberSpinnerBtnDown:hover
+{
     background: #f5f2e8;
 }
 
 /* === Picker Drawer === */
-#pickerDrawer {
+#pickerDrawer
+{
     background-color: palette(base);
     border-right: 1px solid palette(mid);
 }
 
 /* === Header Bar === */
-#headerBar {
+#headerBar
+{
     background-color: palette(base);
     border-bottom: 1px solid palette(mid);
 }
 
 /* === Game Selector === */
-#gameSelector {
+#gameSelector
+{
     font-size: 14px;
     font-weight: bold;
     padding: 4px 10px;
 }
 
 /* === Start / Stop Button === */
-#startStopBtn {
+#startStopBtn
+{
     font-size: 13px;
     font-weight: bold;
     min-width: 130px;
@@ -429,41 +498,48 @@ QPushButton#toastCloseBtn:hover {
     padding: 8px 20px;
 }
 
-#startStopBtn[serverRunning="false"] {
+#startStopBtn[serverRunning="false"]
+{
     background-color: #e0f0e0;
     color: #2a6a2a;
     border: 1px solid #4a8a4a;
 }
 
-#startStopBtn[serverRunning="false"]:hover {
+#startStopBtn[serverRunning="false"]:hover
+{
     background-color: #d0ead0;
     border-color: #3a7a3a;
 }
 
-#startStopBtn[serverRunning="true"] {
+#startStopBtn[serverRunning="true"]
+{
     background-color: #f0e0e0;
     color: #6a2a2a;
     border: 1px solid #8a4a4a;
 }
 
-#startStopBtn[serverRunning="true"]:hover {
+#startStopBtn[serverRunning="true"]:hover
+{
     background-color: #ead0d0;
     border-color: #7a3a3a;
 }
 
 #startStopBtn[serverRunning="false"]:disabled,
-#startStopBtn[serverRunning="true"]:disabled {
+#startStopBtn[serverRunning="true"]:disabled
+{
     background-color: #d8d8d8;
     color: #999999;
     border: 1px solid #bbbbbb;
 }
 
 /* === Nav Bar === */
-#navBar {
+#navBar
+{
     background-color: palette(base);
 }
 
-#navButton {
+#navButton
+{
     text-align: left;
     padding: 10px 14px;
     border: none;
@@ -474,18 +550,21 @@ QPushButton#toastCloseBtn:hover {
     font-size: 13px;
 }
 
-#navButton:hover:!checked {
+#navButton:hover:!checked
+{
     background: rgba(0, 0, 0, 0.04);
 }
 
-#navButton:checked {
+#navButton:checked
+{
     background: rgba(138, 112, 0, 0.10);
     border-left: 3px solid #8a7000;
     color: #8a7000;
     font-weight: bold;
 }
 
-#navHSep {
+#navHSep
+{
     border: none;
     background: palette(mid);
     max-height: 1px;
@@ -494,7 +573,8 @@ QPushButton#toastCloseBtn:hover {
 }
 
 /* === Page Titles === */
-#pageTitle {
+#pageTitle
+{
     font-size: 18px;
     font-weight: bold;
     padding: 16px 20px 12px 20px;
@@ -504,77 +584,91 @@ QPushButton#toastCloseBtn:hover {
 }
 
 /* === Placeholder labels on stub pages === */
-#placeholderLabel {
+#placeholderLabel
+{
     color: palette(placeholder-text);
     font-size: 14px;
 }
 
 /* === Server Setup Dialog === */
-#setupDialogHeading {
+#setupDialogHeading
+{
     font-size: 14px;
     font-weight: bold;
 }
 
-#setupStatusLabel[status="ok"] {
+#setupStatusLabel[status="ok"]
+{
     color: #2a6a2a;
     font-weight: bold;
 }
 
-#setupStatusLabel[status="error"] {
+#setupStatusLabel[status="error"]
+{
     color: #8a2a2a;
 }
 
 /* === Firewall status labels === */
-QLabel[firewallStatus="ok"] {
+QLabel[firewallStatus="ok"]
+{
     color: #2a6a2a;
     font-weight: bold;
 }
 
-QLabel[firewallStatus="warn"] {
+QLabel[firewallStatus="warn"]
+{
     color: #8a7000;
 }
 
-QLabel[firewallStatus="blocked"] {
+QLabel[firewallStatus="blocked"]
+{
     color: #8a2a2a;
 }
 
-QLabel[firewallStatus="unknown"] {
+QLabel[firewallStatus="unknown"]
+{
     color: palette(placeholder-text);
 }
 
 /* === Server not running banner === */
-#serverNotRunningBanner {
+#serverNotRunningBanner
+{
     background-color: rgba(138, 112, 0, 0.08);
     border: 1px solid rgba(138, 112, 0, 0.35);
     border-radius: 6px;
     color: #8a7000;
 }
 
-#serverNotRunningBannerIcon {
+#serverNotRunningBannerIcon
+{
     font-size: 16px;
     color: #8a7000;
 }
 
 /* === Firewall help dialog commands === */
-#helpCmds {
+#helpCmds
+{
     font-family: "Monospace", "Courier New", monospace;
     font-size: 12px;
 }
 
-#helpNote {
+#helpNote
+{
     color: palette(placeholder-text);
     font-size: 12px;
 }
 
 /* === Disabled nav button === */
-#navButton:disabled {
+#navButton:disabled
+{
     color: palette(mid);
     background: transparent;
     border-left-color: transparent;
 }
 
 /* === Server Controls page === */
-#serverOutputArea {
+#serverOutputArea
+{
     background-color: #1a1d27;
     color: #c8d0c4;
     font-family: "Monospace", "Courier New", monospace;
@@ -583,20 +677,23 @@ QLabel[firewallStatus="unknown"] {
     border-radius: 4px;
 }
 
-#cmdPromptLabel {
+#cmdPromptLabel
+{
     font-family: "Monospace", monospace;
     font-size: 14px;
     font-weight: bold;
     color: #8a7000;
 }
 
-#cmdInput {
+#cmdInput
+{
     font-family: "Monospace", "Courier New", monospace;
     font-size: 13px;
 }
 
 /* === Accent button disabled state === */
-QPushButton[accent="true"]:disabled {
+QPushButton[accent="true"]:disabled
+{
     background-color: palette(button);
     color: palette(placeholder-text);
     border: 1px solid palette(dark);

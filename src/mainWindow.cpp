@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMessageBox>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
@@ -226,6 +227,23 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     connect(m_serverManager, &ServerManager::stopped, this, [this]()
     {
         setServerRunning(false);
+    });
+
+    // The server is already being stopped when failed() fires; stopped() then
+    // resets the button. Tell the user why it stopped.
+    connect(m_serverManager, &ServerManager::failed, this, [this](const QString& reason)
+    {
+        m_serverStarting = false;
+        m_serverRunning  = false;
+        m_startStopBtn->setEnabled(false);
+        m_startStopBtn->setText(tr("Stopping Server..."));
+
+        QMessageBox* mb = new QMessageBox(QMessageBox::Warning, tr("Server Stopped"),
+                                          tr("The server was stopped because of an error."),
+                                          QMessageBox::Ok, this);
+        mb->setInformativeText(reason);
+        mb->setAttribute(Qt::WA_DeleteOnClose);
+        mb->open();
     });
 
     connect(m_serverControlsPage, &ServerControlsPage::commandSubmitted,
